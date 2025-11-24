@@ -2,6 +2,8 @@ import os from 'node:os';
 import { BrowserWindow, powerMonitor } from 'electron';
 import { TabManager } from './tabManager';
 import { ConfigService } from './configService';
+import { SessionManager } from '../session/sessionManager';
+import { IPCChannels } from '@shared/ipcChannels';
 
 export interface ResourceSample {
   tabId: string;
@@ -15,13 +17,16 @@ export class ResourceMonitor {
   constructor(
     private readonly window: BrowserWindow,
     private readonly tabManager: TabManager,
-    private readonly configService: ConfigService
+    private readonly configService: ConfigService,
+    private readonly sessionManager: SessionManager
   ) {}
 
   start(): void {
     this.stop();
     const { checkInterval } = this.configService.getConfig().resourceLimits;
-    this.intervalHandle = setInterval(() => this.collectAndAct(), checkInterval);
+    this.intervalHandle = setInterval(() => {
+      void this.collectAndAct();
+    }, checkInterval);
 
     powerMonitor.on('suspend', () => this.stop());
     powerMonitor.on('resume', () => this.start());
@@ -34,7 +39,7 @@ export class ResourceMonitor {
     }
   }
 
-  private collectAndAct(): void {
+  private async collectAndAct(): Promise<void> {
     const limits = this.configService.getConfig().resourceLimits;
     // Electron 沒有針對單一 webview 的指標，此處先使用主進程快照佔位
     const memoryUsage = process.getProcessMemoryInfo?.();
@@ -44,10 +49,14 @@ export class ResourceMonitor {
 
     if (rssMB > limits.maxMemoryMB || cpuLoad > limits.maxCpuPercent) {
       const snapshot = this.tabManager.getSnapshot();
-      const candidate = snapshot.tabs.find((tab) => !tab.isActive);
+      const candidate = snapshot.tabs.find((tab) => !tab.isActive && !tab.isSuspended);
       if (candidate) {
+        await this.sessionManager.captureSnapshot(candidate.id);
         this.tabManager.markSuspended(candidate.id);
-        this.window.webContents.send('tabs:force-unload', candidate.id);
+        this.window.webContents.send(IPCChannels.TABS_FORCE_UNLOAD, {
+          id: candidate.id,
+          reason: 'resource-limit'
+        });
       }
     }
   }

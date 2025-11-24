@@ -5,11 +5,18 @@ export const IPCChannels = {
   TABS_LIST: 'tabs:list',
   TABS_UPDATE_META: 'tabs:update-meta',
   TABS_NAVIGATE: 'tabs:navigate',
+  TABS_REFRESH: 'tabs:refresh',
   TABS_RELOAD: 'tabs:reload',
   TABS_FORCE_UNLOAD: 'tabs:force-unload',
   TABS_STATE_PUSH: 'tabs:state',
   CONFIG_GET: 'config:get',
-  CONFIG_UPDATE: 'config:update'
+  CONFIG_UPDATE: 'config:update',
+  BOOKMARK_LIST: 'bookmarks:list',
+  BOOKMARK_ADD: 'bookmarks:add',
+  BOOKMARK_UPDATE: 'bookmarks:update',
+  BOOKMARK_DELETE: 'bookmarks:delete',
+  BOOKMARK_SEARCH: 'bookmarks:search',
+  BOOKMARK_SYNC: 'bookmarks:sync'
 } as const;
 
 export type IPCChannel = (typeof IPCChannels)[keyof typeof IPCChannels];

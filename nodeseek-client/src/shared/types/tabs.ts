@@ -32,3 +32,10 @@ export interface UpdateTabMetaPayload {
   url?: string;
   isLoading?: boolean;
 }
+
+export interface ReloadTabPayload {
+  id: string;
+  mode?: 'soft' | 'hard';
+  reason?: 'user' | 'resource-monitor' | 'resume';
+  url?: string;
+}

@@ -1,13 +1,14 @@
 import path from 'node:path';
 import { app, BrowserWindow, ipcMain, nativeTheme } from 'electron';
 import { IPCChannels } from '@shared/ipcChannels';
-import { CreateTabPayload, NavigateTabPayload, UpdateTabMetaPayload } from '@shared/types/tabs';
+import { CreateTabPayload, NavigateTabPayload, ReloadTabPayload, UpdateTabMetaPayload } from '@shared/types/tabs';
 import { TabManager } from './services/tabManager';
 import { ConfigService } from './services/configService';
 import { ResourceMonitor } from './services/resourceMonitor';
 import { SessionManager } from './session/sessionManager';
 import { AuthManager } from './auth/authManager';
 import { BookmarkManager } from './services/bookmarkManager';
+import { BookmarkInput, BookmarkSearchPayload, BookmarkUpdatePayload } from '@shared/types/bookmarks';
 
 let mainWindow: BrowserWindow | null = null;
 let tabManager: TabManager;
@@ -23,7 +24,7 @@ const createWindow = async (): Promise<void> => {
   configService = new ConfigService();
   sessionManager = new SessionManager(configService.getConfig());
   authManager = new AuthManager(configService.getConfig());
-  bookmarkManager = new BookmarkManager();
+  bookmarkManager = new BookmarkManager(configService);
 
   mainWindow = new BrowserWindow({
     width: 1400,
@@ -42,7 +43,7 @@ const createWindow = async (): Promise<void> => {
   });
 
   tabManager = new TabManager(mainWindow);
-  resourceMonitor = new ResourceMonitor(mainWindow, tabManager, configService);
+  resourceMonitor = new ResourceMonitor(mainWindow, tabManager, configService, sessionManager);
 
   tabManager.on('state-changed', (snapshot) => {
     mainWindow?.webContents.send(IPCChannels.TABS_STATE_PUSH, snapshot);
@@ -65,12 +66,43 @@ const createWindow = async (): Promise<void> => {
 const registerIpcHandlers = (): void => {
   ipcMain.handle(IPCChannels.TABS_CREATE, (_, payload: CreateTabPayload) => tabManager.createTab(payload));
   ipcMain.handle(IPCChannels.TABS_LIST, () => tabManager.getSnapshot());
-  ipcMain.handle(IPCChannels.TABS_CLOSE, (_, tabId: string) => tabManager.closeTab(tabId));
+  ipcMain.handle(IPCChannels.TABS_CLOSE, (_, tabId: string) => {
+    sessionManager.dropSnapshot(tabId);
+    return tabManager.closeTab(tabId);
+  });
   ipcMain.handle(IPCChannels.TABS_ACTIVATE, (_, tabId: string) => tabManager.setActiveTab(tabId));
   ipcMain.handle(IPCChannels.TABS_NAVIGATE, (_, payload: NavigateTabPayload) => tabManager.navigateTab(payload.id, payload.url));
   ipcMain.handle(IPCChannels.TABS_UPDATE_META, (_, payload: UpdateTabMetaPayload) => tabManager.updateTabMeta(payload));
+  ipcMain.handle(IPCChannels.TABS_REFRESH, async (_, payload: ReloadTabPayload) => {
+    if (!payload?.id) {
+      return tabManager.getSnapshot();
+    }
+    if (payload.reason !== 'resource-monitor' && payload.reason !== 'resume') {
+      await sessionManager.captureSnapshot(payload.id);
+    }
+    await sessionManager.restoreSnapshot(payload.id);
+    const snapshot = tabManager.resumeTab(payload.id);
+    const tab = tabManager.getTab(payload.id);
+    mainWindow?.webContents.send(IPCChannels.TABS_RELOAD, {
+      id: payload.id,
+      url: payload.url ?? tab?.url,
+      mode: payload.mode ?? 'soft',
+      reason: payload.reason ?? 'user'
+    });
+    return snapshot;
+  });
   ipcMain.handle(IPCChannels.CONFIG_GET, () => configService.getConfig());
-  ipcMain.handle(IPCChannels.CONFIG_UPDATE, (_, partial: any) => configService.updateConfig(partial));
+  ipcMain.handle(IPCChannels.CONFIG_UPDATE, async (_, partial: any) => {
+    const merged = configService.updateConfig(partial);
+    await bookmarkManager.refreshWebDavClient();
+    return merged;
+  });
+  ipcMain.handle(IPCChannels.BOOKMARK_LIST, (_, accountId: number) => bookmarkManager.listBookmarks(accountId));
+  ipcMain.handle(IPCChannels.BOOKMARK_ADD, (_, payload: BookmarkInput) => bookmarkManager.addBookmark(payload));
+  ipcMain.handle(IPCChannels.BOOKMARK_UPDATE, (_, payload: BookmarkUpdatePayload) => bookmarkManager.updateBookmark(payload));
+  ipcMain.handle(IPCChannels.BOOKMARK_DELETE, (_, id: number) => bookmarkManager.deleteBookmark(id));
+  ipcMain.handle(IPCChannels.BOOKMARK_SEARCH, (_, payload: BookmarkSearchPayload) => bookmarkManager.search(payload));
+  ipcMain.handle(IPCChannels.BOOKMARK_SYNC, () => bookmarkManager.triggerManualSync());
 };
 
 app.whenReady().then(createWindow).catch((error) => {

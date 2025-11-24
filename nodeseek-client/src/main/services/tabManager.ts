@@ -115,11 +115,27 @@ export class TabManager extends EventEmitter {
     this.emitStateChanged();
   }
 
+  resumeTab(id: string): TabSnapshot {
+    const tab = this.tabs.get(id);
+    if (!tab) {
+      return this.getSnapshot();
+    }
+    tab.isSuspended = false;
+    tab.isLoading = true;
+    tab.updatedAt = Date.now();
+    this.emitStateChanged();
+    return this.getSnapshot();
+  }
+
   getSnapshot(): TabSnapshot {
     return {
       tabs: Array.from(this.tabs.values()),
       activeTabId: this.activeTabId
     };
+  }
+
+  getTab(id: string): TabMetadata | undefined {
+    return this.tabs.get(id);
   }
 
   private emitStateChanged(): void {
