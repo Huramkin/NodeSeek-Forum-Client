@@ -1,0 +1,35 @@
+{
+  "appId": "com.nodeseek.deepflood",
+  "productName": "NodeSeek DeepFlood",
+  "asar": true,
+  "files": [
+    "dist/main/**/*",
+    "dist/preload/**/*",
+    "dist/renderer/**/*",
+    "package.json"
+  ],
+  "directories": {
+    "output": "release",
+    "buildResources": "assets"
+  },
+  "extraResources": [
+    {
+      "from": "database",
+      "to": "app/database",
+      "filter": ["**/*"]
+    }
+  ],
+  "mac": {
+    "category": "public.app-category.productivity",
+    "target": ["dmg", "zip"],
+    "entitlements": "config/entitlements.mac.plist"
+  },
+  "win": {
+    "target": ["nsis", "zip"],
+    "publisherName": "NodeSeek"
+  },
+  "nsis": {
+    "oneClick": false,
+    "allowToChangeInstallationDirectory": true
+  }
+}
