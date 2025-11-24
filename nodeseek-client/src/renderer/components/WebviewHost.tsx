@@ -120,11 +120,11 @@ const WebviewItem = ({ tabId, url, isActive, isSuspended }: { tabId: string; url
     if (!isActive || !isSuspended) {
       return;
     }
-    void window.electronAPI.tabs.navigate({ id: tabId, url });
+    void window.electronAPI.tabs.refresh({ id: tabId, url, mode: 'hard', reason: 'resume' });
   }, [isActive, isSuspended, tabId, url]);
 
   const handleResume = () => {
-    void window.electronAPI.tabs.navigate({ id: tabId, url });
+    void window.electronAPI.tabs.refresh({ id: tabId, url, mode: 'hard', reason: 'resume' });
   };
 
   return (
@@ -143,6 +143,37 @@ const WebviewItem = ({ tabId, url, isActive, isSuspended }: { tabId: string; url
 
 export const WebviewHost = () => {
   const { tabs, activeTabId } = useTabStore();
+
+  useEffect(() => {
+    const unsubscribeReload = window.electronAPI.tabs.onReload((payload) => {
+      const view = document.querySelector(`webview[data-tab-id="${payload.id}"]`) as HTMLWebViewElement | null;
+      if (!view) {
+        return;
+      }
+      if (payload.mode === 'hard') {
+        if (payload.url) {
+          view.src = payload.url;
+          return;
+        }
+        const reloadIgnoringCache = (view as any).reloadIgnoringCache?.bind(view);
+        if (reloadIgnoringCache) {
+          reloadIgnoringCache();
+          return;
+        }
+      }
+      view.reload();
+    });
+    const unsubscribeForceUnload = window.electronAPI.tabs.onForceUnload((id) => {
+      const view = document.querySelector(`webview[data-tab-id="${id}"]`) as HTMLWebViewElement | null;
+      if (view) {
+        view.src = 'about:blank';
+      }
+    });
+    return () => {
+      unsubscribeReload();
+      unsubscribeForceUnload();
+    };
+  }, []);
 
   return (
     <Container>

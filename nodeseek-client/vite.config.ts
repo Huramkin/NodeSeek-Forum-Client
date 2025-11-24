@@ -20,5 +20,13 @@ export default defineConfig({
   build: {
     outDir: 'dist/renderer',
     emptyOutDir: true
+  },
+  test: {
+    globals: true,
+    environment: 'node',
+    coverage: {
+      reporter: ['text', 'html'],
+      reportsDirectory: 'coverage/unit'
+    }
   }
 });

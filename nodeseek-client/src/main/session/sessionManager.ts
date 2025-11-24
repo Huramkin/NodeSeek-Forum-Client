@@ -1,4 +1,4 @@
-import { session, CookiesGetFilter, CookiesSetDetails } from 'electron';
+import { session, CookiesGetFilter, CookiesSetDetails, Cookies } from 'electron';
 import { AppConfig } from '@shared/types/config';
 
 export interface StoredCookie {
@@ -12,40 +12,51 @@ export interface StoredCookie {
   expirationDate?: number;
 }
 
+const WEBVIEW_PARTITION = 'persist:nodeseek';
+
 export class SessionManager {
   private cache = new Map<string, StoredCookie[]>();
+  private readonly partitionSession = session.fromPartition(WEBVIEW_PARTITION);
 
   constructor(private readonly config: AppConfig) {}
 
-  async saveCookies(accountId: string): Promise<void> {
+  async captureSnapshot(key: string): Promise<void> {
     if (!this.config.session.persistCookies) {
       return;
     }
-    const cookies = await session.defaultSession.cookies.get({
+    const cookies = await this.partitionSession.cookies.get({
       domain: this.config.session.cookieDomain
     } satisfies CookiesGetFilter);
-    this.cache.set(accountId, cookies as StoredCookie[]);
+    this.cache.set(key, cookies as StoredCookie[]);
   }
 
-  async loadCookies(accountId: string): Promise<void> {
-    const cookies = this.cache.get(accountId);
+  async restoreSnapshot(key: string): Promise<void> {
+    if (!this.config.session.persistCookies) {
+      return;
+    }
+    const cookies = this.cache.get(key);
     if (!cookies?.length) {
       return;
     }
+    await this.removeDomainCookies();
     for (const cookie of cookies) {
-      await session.defaultSession.cookies.set(cookie as CookiesSetDetails);
+      await this.partitionSession.cookies.set(cookie as CookiesSetDetails);
     }
   }
 
-  async clearCookies(accountId?: string): Promise<void> {
-    if (accountId) {
-      this.cache.delete(accountId);
+  dropSnapshot(key: string): void {
+    this.cache.delete(key);
+  }
+
+  async clearCookies(key?: string): Promise<void> {
+    if (key) {
+      this.cache.delete(key);
     } else {
       this.cache.clear();
     }
-    const cookies = await session.defaultSession.cookies.get({});
+    const cookies = await this.partitionSession.cookies.get({});
     await Promise.all(
-      cookies.map((cookie) => session.defaultSession.cookies.remove(`http${cookie.secure ? 's' : ''}://${cookie.domain}${cookie.path}`, cookie.name))
+      cookies.map((cookie) => this.partitionSession.cookies.remove(this.composeCookieUrl(cookie), cookie.name))
     );
   }
 
@@ -53,7 +64,22 @@ export class SessionManager {
     if (!this.config.session.shareAcrossTabs) {
       return;
     }
-    // webview 共用同一 partition，主進程只需確保 defaultSession 內容準確
-    await session.defaultSession.cookies.flushStore();
+    await this.partitionSession.cookies.flushStore();
+  }
+
+  private async removeDomainCookies(): Promise<void> {
+    const domainCookies = await this.partitionSession.cookies.get({
+      domain: this.config.session.cookieDomain
+    } satisfies CookiesGetFilter);
+    await Promise.all(
+      domainCookies.map((cookie) => this.partitionSession.cookies.remove(this.composeCookieUrl(cookie), cookie.name))
+    );
+  }
+
+  private composeCookieUrl(cookie: Cookies.Cookie): string {
+    const scheme = cookie.secure ? 'https' : 'http';
+    const domain = cookie.domain?.startsWith('.') ? cookie.domain.slice(1) : cookie.domain ?? '';
+    const path = cookie.path ?? '/';
+    return `${scheme}://${domain}${path}`;
   }
 }

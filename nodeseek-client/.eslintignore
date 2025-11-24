@@ -1,0 +1,5 @@
+dist
+release
+node_modules
+coverage
+tests/e2e/playwright-report

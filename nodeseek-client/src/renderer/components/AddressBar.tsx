@@ -43,7 +43,11 @@ const Input = styled.input`
   outline: none;
 `;
 
-export const AddressBar = () => {
+interface AddressBarProps {
+  onOpenBookmarks: () => void;
+}
+
+export const AddressBar = ({ onOpenBookmarks }: AddressBarProps) => {
   const { tabs, activeTabId } = useTabStore();
   const activeTab = useMemo(() => tabs.find((tab) => tab.id === activeTabId), [tabs, activeTabId]);
   const [address, setAddress] = useState(activeTab?.url ?? '');
@@ -68,12 +72,10 @@ export const AddressBar = () => {
   };
 
   const handleReload = () => {
-    const view = activeWebview();
-    if (view) {
-      view.reload();
-    } else if (activeTab) {
-      void window.electronAPI.tabs.navigate({ id: activeTab.id, url: activeTab.url });
+    if (!activeTab) {
+      return;
     }
+    void window.electronAPI.tabs.refresh({ id: activeTab.id, url: activeTab.url, mode: 'hard', reason: 'user' });
   };
 
   const handleForceUnload = () => {
@@ -110,6 +112,9 @@ export const AddressBar = () => {
       </Button>
       <Button onClick={handleForceUnload} title="強制卸載標籤頁內容">
         ⏻
+      </Button>
+      <Button onClick={onOpenBookmarks} title="管理書籤">
+        ★
       </Button>
       <form style={{ flex: 1 }} onSubmit={handleSubmit}>
         <Input value={address} onChange={(event) => setAddress(event.target.value)} spellCheck={false} placeholder="輸入 NodeSeek 帖子連結或關鍵字" />

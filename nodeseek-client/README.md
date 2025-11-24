@@ -32,6 +32,16 @@ npm run package
 
 基於 `config/electron-builder.json`，可輸出 Windows（NSIS/ZIP）與 macOS（DMG/ZIP）安裝包。
 
+> 進階簽章、平台差異化依賴請參考 [`docs/manual-build.md`](docs/manual-build.md)。
+
+### 測試與靜態檢查
+
+```bash
+npm run lint        # ESLint + Prettier 規則
+npm run test:unit   # Vitest
+npm run test:e2e    # Playwright（使用 Vite preview 與瀏覽器 mock）
+```
+
 ### 主要目錄
 
 ```
