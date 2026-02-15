@@ -22,7 +22,11 @@ export const IPCChannels = {
   FOLDER_LIST: 'folders:list',
   FOLDER_CREATE: 'folders:create',
   FOLDER_UPDATE: 'folders:update',
-  FOLDER_DELETE: 'folders:delete'
+  FOLDER_DELETE: 'folders:delete',
+  AUTH_LOGIN: 'auth:login',
+  AUTH_LOGOUT: 'auth:logout',
+  AUTH_GET_CURRENT: 'auth:get-current',
+  AUTH_LIST_ACCOUNTS: 'auth:list-accounts'
 } as const;
 
 export type IPCChannel = (typeof IPCChannels)[keyof typeof IPCChannels];

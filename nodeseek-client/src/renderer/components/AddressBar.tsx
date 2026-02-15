@@ -44,12 +44,34 @@ const Input = styled.input`
   outline: none;
 `;
 
+const UserInfo = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 12px;
+  border-radius: 6px;
+  background: rgba(59, 130, 246, 0.15);
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  font-size: 13px;
+  color: #60a5fa;
+`;
+
+const UserName = styled.span`
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+`;
+
 interface AddressBarProps {
   onOpenBookmarks: () => void;
   onOpenSettings: () => void;
+  onOpenLogin: () => void;
+  currentUser: { username: string; displayName?: string } | null;
+  onLogout: () => void;
 }
 
-export const AddressBar = ({ onOpenBookmarks, onOpenSettings }: AddressBarProps) => {
+export const AddressBar = ({ onOpenBookmarks, onOpenSettings, onOpenLogin, currentUser, onLogout }: AddressBarProps) => {
   const { tabs, activeTabId } = useTabStore();
   const activeTab = useMemo(() => tabs.find((tab) => tab.id === activeTabId), [tabs, activeTabId]);
   const [address, setAddress] = useState(activeTab?.url ?? '');
@@ -199,6 +221,23 @@ export const AddressBar = ({ onOpenBookmarks, onOpenSettings }: AddressBarProps)
       <Button onClick={onOpenSettings} title="設定">
         ⚙
       </Button>
+      {currentUser ? (
+        <>
+          <UserInfo>
+            <span>👤</span>
+            <UserName title={currentUser.displayName || currentUser.username}>
+              {currentUser.displayName || currentUser.username}
+            </UserName>
+          </UserInfo>
+          <Button onClick={onLogout} title="登出">
+            ⎋
+          </Button>
+        </>
+      ) : (
+        <Button onClick={onOpenLogin} title="登入">
+          🔑
+        </Button>
+      )}
       <form style={{ flex: 1 }} onSubmit={handleSubmit}>
         <Input
           value={address}

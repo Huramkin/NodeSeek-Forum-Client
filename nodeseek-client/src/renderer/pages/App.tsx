@@ -6,6 +6,7 @@ import { WebviewHost } from '../components/WebviewHost';
 import { useTabStore } from '../store/tabStore';
 import { BookmarkManagerPanel } from '../components/BookmarkManagerPanel';
 import { SettingsPanel } from '../components/SettingsPanel';
+import { LoginPanel } from '../components/LoginPanel';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
 
@@ -42,9 +43,53 @@ const App = () => {
   }));
   const [bookmarkOpen, setBookmarkOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [loginOpen, setLoginOpen] = useState(false);
+  const [currentUser, setCurrentUser] = useState<{ username: string; displayName?: string } | null>(null);
   
   // Enable keyboard shortcuts
   useKeyboardShortcuts();
+
+  // Load current user on mount
+  useEffect(() => {
+    const loadCurrentUser = async () => {
+      try {
+        const user = await window.electronAPI.auth.getCurrentUser();
+        if (user) {
+          setCurrentUser({ username: user.username, displayName: user.displayName });
+        }
+      } catch (error) {
+        console.error('[App] Failed to load current user:', error);
+      }
+    };
+    void loadCurrentUser();
+  }, []);
+
+  const handleLogin = async (username: string, password: string) => {
+    try {
+      const result = await window.electronAPI.auth.login(username, password);
+      if (result.success) {
+        setCurrentUser({ username: result.username });
+      }
+    } catch (error) {
+      console.error('[App] Login failed:', error);
+      throw error;
+    }
+  };
+
+  const handleLogout = async () => {
+    if (!currentUser) return;
+    
+    try {
+      const accounts = await window.electronAPI.auth.listAccounts();
+      const account = accounts.find(a => a.username === currentUser.username);
+      if (account) {
+        await window.electronAPI.auth.logout(account.id);
+        setCurrentUser(null);
+      }
+    } catch (error) {
+      console.error('[App] Logout failed:', error);
+    }
+  };
 
   useEffect(() => {
     let unsubscribe: (() => void) | undefined;
@@ -68,11 +113,15 @@ const App = () => {
           <AddressBar 
             onOpenBookmarks={() => setBookmarkOpen(true)} 
             onOpenSettings={() => setSettingsOpen(true)}
+            onOpenLogin={() => setLoginOpen(true)}
+            currentUser={currentUser}
+            onLogout={handleLogout}
           />
           {loading ? <Loading>初始化標籤頁...</Loading> : <WebviewHost />}
         </Layout>
         <BookmarkManagerPanel open={bookmarkOpen} onClose={() => setBookmarkOpen(false)} />
         <SettingsPanel open={settingsOpen} onClose={() => setSettingsOpen(false)} />
+        <LoginPanel open={loginOpen} onClose={() => setLoginOpen(false)} onLogin={handleLogin} />
       </Root>
     </ErrorBoundary>
   );

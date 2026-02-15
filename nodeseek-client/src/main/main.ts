@@ -143,6 +143,25 @@ const registerIpcHandlers = (): void => {
   ipcMain.handle(IPCChannels.FOLDER_DELETE, (_, id: number, moveToFolder?: number) =>
     bookmarkManager.deleteFolder(id, moveToFolder)
   );
+  ipcMain.handle(IPCChannels.AUTH_LOGIN, async (_, username: string, password: string) => {
+    const accountId = `account_${Date.now()}`;
+    await authManager.saveCredential({
+      id: accountId,
+      username,
+      password,
+      displayName: username
+    });
+    return { success: true, accountId, username };
+  });
+  ipcMain.handle(IPCChannels.AUTH_LOGOUT, async (_, accountId: string) => {
+    await authManager.deleteCredential(accountId);
+    return { success: true };
+  });
+  ipcMain.handle(IPCChannels.AUTH_GET_CURRENT, async () => {
+    const accounts = await authManager.listCredentials();
+    return accounts.length > 0 ? accounts[0] : null;
+  });
+  ipcMain.handle(IPCChannels.AUTH_LIST_ACCOUNTS, () => authManager.listCredentials());
 };
 
 app
