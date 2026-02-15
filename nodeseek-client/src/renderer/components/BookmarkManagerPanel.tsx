@@ -1,6 +1,6 @@
 import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
 import styled from 'styled-components';
-import { BookmarkRecord, BookmarkSyncResult } from '@shared/types/bookmarks';
+import { BookmarkRecord, BookmarkSyncResult, BookmarkFolder } from '@shared/types/bookmarks';
 
 const Overlay = styled.div<{ $open: boolean }>`
   position: fixed;
@@ -14,17 +14,38 @@ const Overlay = styled.div<{ $open: boolean }>`
 `;
 
 const Panel = styled.div`
-  width: 900px;
-  max-width: 90%;
-  height: 80%;
+  width: 1100px;
+  max-width: 95%;
+  height: 85%;
   background: #10131b;
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 12px;
   display: flex;
+  flex-direction: row;
+  padding: 0;
+  gap: 0;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
+  overflow: hidden;
+`;
+
+const Sidebar = styled.div`
+  width: 240px;
+  background: rgba(0, 0, 0, 0.2);
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
+  display: flex;
+  flex-direction: column;
+  padding: 20px;
+  gap: 8px;
+  overflow-y: auto;
+`;
+
+const MainContent = styled.div`
+  flex: 1;
+  display: flex;
   flex-direction: column;
   padding: 20px;
   gap: 16px;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
+  overflow: hidden;
 `;
 
 const Header = styled.div`
@@ -79,7 +100,8 @@ const PrimaryButton = styled.button<{ $variant?: 'ghost' | 'primary' }>`
   border: ${({ $variant }) => ($variant === 'ghost' ? '1px solid rgba(255, 255, 255, 0.24)' : 'none')};
 
   &:hover {
-    background: ${({ $variant }) => ($variant === 'ghost' ? 'rgba(255, 255, 255, 0.06)' : 'rgba(79, 130, 255, 1)')};
+    background: ${({ $variant }) =>
+      $variant === 'ghost' ? 'rgba(255, 255, 255, 0.06)' : 'rgba(79, 130, 255, 1)'};
   }
 `;
 
@@ -147,22 +169,93 @@ const Footer = styled.div`
   color: #94a3b8;
 `;
 
+const FolderItem = styled.div<{ $active?: boolean; $indent?: number }>`
+  padding: 8px 12px;
+  padding-left: ${({ $indent }) => 12 + ($indent ?? 0) * 16}px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  color: ${({ $active }) => ($active ? '#ffffff' : '#cbd5e1')};
+  background: ${({ $active }) => ($active ? 'rgba(79, 130, 255, 0.3)' : 'transparent')};
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  &:hover {
+    background: ${({ $active }) => ($active ? 'rgba(79, 130, 255, 0.3)' : 'rgba(255, 255, 255, 0.05)')};
+  }
+`;
+
+const FolderIcon = styled.span`
+  font-size: 16px;
+  min-width: 16px;
+`;
+
+const BatchToolbar = styled.div`
+  display: flex;
+  gap: 8px;
+  padding: 12px;
+  background: rgba(79, 130, 255, 0.1);
+  border-radius: 8px;
+  align-items: center;
+`;
+
+const Checkbox = styled.input`
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+`;
+
+const SmallButton = styled.button`
+  border: none;
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: 12px;
+  cursor: pointer;
+  background: rgba(79, 130, 255, 0.6);
+  color: #ffffff;
+
+  &:hover {
+    background: rgba(79, 130, 255, 0.8);
+  }
+
+  &:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+`;
+
+const SectionTitle = styled.h3`
+  margin: 0 0 8px 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+`;
+
 const DEFAULT_ACCOUNT_ID = 1;
 const EMPTY_FORM = {
   id: undefined as number | undefined,
   title: '',
   url: '',
   category: '',
-  tags: ''
+  tags: '',
+  folderId: undefined as number | undefined,
+  isFavorite: false
 };
 
 export const BookmarkManagerPanel = ({ open, onClose }: { open: boolean; onClose: () => void }) => {
   const [bookmarks, setBookmarks] = useState<BookmarkRecord[]>([]);
+  const [folders, setFolders] = useState<BookmarkFolder[]>([]);
   const [loading, setLoading] = useState(false);
   const [keyword, setKeyword] = useState('');
   const [form, setForm] = useState({ ...EMPTY_FORM });
   const [syncStatus, setSyncStatus] = useState<BookmarkSyncResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [selectedFolder, setSelectedFolder] = useState<number | null>(null);
+  const [selectedBookmarks, setSelectedBookmarks] = useState<Set<number>>(new Set());
+  const [showFavorites, setShowFavorites] = useState(false);
 
   const loadBookmarks = useCallback(async () => {
     try {
@@ -178,16 +271,47 @@ export const BookmarkManagerPanel = ({ open, onClose }: { open: boolean; onClose
     }
   }, []);
 
+  const loadFolders = useCallback(async () => {
+    try {
+      const list = await window.electronAPI.folders.list(DEFAULT_ACCOUNT_ID);
+      setFolders(list);
+    } catch (err) {
+      console.error('無法載入資料夾', err);
+    }
+  }, []);
+
   useEffect(() => {
     if (open) {
       void loadBookmarks();
+      void loadFolders();
+      setSelectedBookmarks(new Set());
     }
-  }, [open, loadBookmarks]);
+  }, [open, loadBookmarks, loadFolders]);
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
-    if (!form.title.trim() || !form.url.trim()) {
-      setError('標題與網址為必填');
+
+    // Validate title
+    if (!form.title.trim()) {
+      setError('標題為必填');
+      return;
+    }
+
+    if (form.title.length > 200) {
+      setError('標題長度不能超過 200 個字符');
+      return;
+    }
+
+    // Validate URL
+    if (!form.url.trim()) {
+      setError('網址為必填');
+      return;
+    }
+
+    try {
+      new URL(form.url);
+    } catch {
+      setError('請輸入有效的網址格式');
       return;
     }
     try {
@@ -199,7 +323,9 @@ export const BookmarkManagerPanel = ({ open, onClose }: { open: boolean; onClose
             title: form.title,
             url: form.url,
             category: form.category || undefined,
-            tags: form.tags || undefined
+            tags: form.tags || undefined,
+            folderId: form.folderId,
+            isFavorite: form.isFavorite
           }
         });
       } else {
@@ -208,7 +334,9 @@ export const BookmarkManagerPanel = ({ open, onClose }: { open: boolean; onClose
           title: form.title,
           url: form.url,
           category: form.category || undefined,
-          tags: form.tags || undefined
+          tags: form.tags || undefined,
+          folderId: form.folderId ?? selectedFolder ?? undefined,
+          isFavorite: form.isFavorite
         });
       }
       setForm({ ...EMPTY_FORM });
@@ -225,7 +353,9 @@ export const BookmarkManagerPanel = ({ open, onClose }: { open: boolean; onClose
       title: record.title,
       url: record.url,
       category: record.category ?? '',
-      tags: record.tags ?? ''
+      tags: record.tags ?? '',
+      folderId: record.folderId,
+      isFavorite: record.isFavorite ?? false
     });
   };
 
@@ -260,11 +390,107 @@ export const BookmarkManagerPanel = ({ open, onClose }: { open: boolean; onClose
     try {
       const result = await window.electronAPI.bookmarks.sync();
       setSyncStatus(result);
+      await loadBookmarks();
+      await loadFolders();
     } catch (err) {
       setError('同步失敗，請檢查 WebDAV 設定');
       console.error(err);
     }
   };
+
+  const handleCreateFolder = async () => {
+    const name = prompt('請輸入資料夾名稱：');
+    if (!name?.trim()) return;
+
+    try {
+      await window.electronAPI.folders.create({
+        accountId: DEFAULT_ACCOUNT_ID,
+        name: name.trim(),
+        parentId: selectedFolder ?? undefined
+      });
+      await loadFolders();
+    } catch (err) {
+      setError('建立資料夾失敗');
+      console.error(err);
+    }
+  };
+
+  const handleToggleBookmark = (id: number) => {
+    setSelectedBookmarks((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
+
+  const handleBatchDelete = async () => {
+    if (selectedBookmarks.size === 0) return;
+    if (!confirm(`確定要刪除 ${selectedBookmarks.size} 個書籤嗎？`)) return;
+
+    try {
+      await window.electronAPI.bookmarks.batch({
+        ids: Array.from(selectedBookmarks),
+        operation: 'delete'
+      });
+      setSelectedBookmarks(new Set());
+      await loadBookmarks();
+    } catch (err) {
+      setError('批次刪除失敗');
+      console.error(err);
+    }
+  };
+
+  const handleBatchMove = async () => {
+    if (selectedBookmarks.size === 0) return;
+
+    const targetFolderId = prompt('請輸入目標資料夾 ID（留空表示移至根目錄）：');
+    if (targetFolderId === null) return;
+
+    try {
+      await window.electronAPI.bookmarks.batch({
+        ids: Array.from(selectedBookmarks),
+        operation: 'move',
+        folderId: targetFolderId ? parseInt(targetFolderId) : undefined
+      });
+      setSelectedBookmarks(new Set());
+      await loadBookmarks();
+    } catch (err) {
+      setError('批次移動失敗');
+      console.error(err);
+    }
+  };
+
+  const handleBatchFavorite = async (favorite: boolean) => {
+    if (selectedBookmarks.size === 0) return;
+
+    try {
+      await window.electronAPI.bookmarks.batch({
+        ids: Array.from(selectedBookmarks),
+        operation: favorite ? 'favorite' : 'unfavorite'
+      });
+      setSelectedBookmarks(new Set());
+      await loadBookmarks();
+    } catch (err) {
+      setError('批次操作失敗');
+      console.error(err);
+    }
+  };
+
+  const filteredBookmarks = useMemo(() => {
+    let result = bookmarks;
+
+    if (showFavorites) {
+      result = result.filter((b) => b.isFavorite);
+    } else if (selectedFolder !== null) {
+      result = result.filter((b) => b.folderId === selectedFolder);
+    }
+
+    return result;
+  }, [bookmarks, selectedFolder, showFavorites]);
 
   const helperText = useMemo(() => {
     if (error) {
@@ -276,61 +502,175 @@ export const BookmarkManagerPanel = ({ open, onClose }: { open: boolean; onClose
     return '書籤儲存在本地 SQLite，可透過 WebDAV 同步';
   }, [error, syncStatus]);
 
+  const buildFolderTree = useCallback(
+    (parentId: number | null = null, indent = 0): JSX.Element[] => {
+      return folders
+        .filter((f) => f.parentId === parentId)
+        .map((folder) => (
+          <div key={folder.id}>
+            <FolderItem
+              $active={selectedFolder === folder.id}
+              $indent={indent}
+              onClick={() => {
+                setSelectedFolder(folder.id);
+                setShowFavorites(false);
+              }}
+            >
+              <FolderIcon>📁</FolderIcon>
+              {folder.name}
+            </FolderItem>
+            {buildFolderTree(folder.id, indent + 1)}
+          </div>
+        ));
+    },
+    [folders, selectedFolder]
+  );
+
   return (
     <Overlay $open={open}>
       <Panel>
-        <Header>
-          <Heading>書籤管理</Heading>
-          <CloseButton onClick={onClose}>×</CloseButton>
-        </Header>
-        <SearchBar>
-          <Input placeholder="輸入關鍵字快速搜尋" value={keyword} onChange={(event) => setKeyword(event.target.value)} onKeyDown={(event) => event.key === 'Enter' && handleSearch()} />
-          <PrimaryButton type="button" onClick={handleSearch}>
-            搜尋
-          </PrimaryButton>
-          <PrimaryButton type="button" onClick={handleSync} $variant="ghost">
-            同步 WebDAV
-          </PrimaryButton>
-        </SearchBar>
+        <Sidebar>
+          <SectionTitle>檢視</SectionTitle>
+          <FolderItem
+            $active={!showFavorites && selectedFolder === null}
+            onClick={() => {
+              setSelectedFolder(null);
+              setShowFavorites(false);
+            }}
+          >
+            <FolderIcon>📚</FolderIcon>
+            所有書籤
+          </FolderItem>
+          <FolderItem
+            $active={showFavorites}
+            onClick={() => {
+              setShowFavorites(true);
+              setSelectedFolder(null);
+            }}
+          >
+            <FolderIcon>⭐</FolderIcon>
+            我的最愛
+          </FolderItem>
 
-        <ListContainer>
-          {loading ? (
-            <EmptyState>載入書籤中...</EmptyState>
-          ) : bookmarks.length ? (
-            bookmarks.map((bookmark) => (
-              <BookmarkCard key={bookmark.id}>
-                <BookmarkTitle>{bookmark.title}</BookmarkTitle>
-                <BookmarkMeta>
-                  <span>{bookmark.url}</span>
-                  {bookmark.category && <span>分類：{bookmark.category}</span>}
-                  {bookmark.tags && <span>標籤：{bookmark.tags}</span>}
-                </BookmarkMeta>
-                <ActionRow>
-                  <PrimaryButton type="button" onClick={() => handleEdit(bookmark)}>
-                    編輯
-                  </PrimaryButton>
-                  <PrimaryButton type="button" $variant="ghost" onClick={() => handleDelete(bookmark.id)}>
-                    刪除
-                  </PrimaryButton>
-                </ActionRow>
-              </BookmarkCard>
-            ))
-          ) : (
-            <EmptyState>尚未新增任何書籤</EmptyState>
+          <SectionTitle style={{ marginTop: '16px' }}>資料夾</SectionTitle>
+          {buildFolderTree()}
+          <PrimaryButton type="button" onClick={handleCreateFolder} style={{ marginTop: '8px' }}>
+            + 新增資料夾
+          </PrimaryButton>
+        </Sidebar>
+
+        <MainContent>
+          <Header>
+            <Heading>書籤管理</Heading>
+            <CloseButton onClick={onClose}>×</CloseButton>
+          </Header>
+
+          <SearchBar>
+            <Input
+              placeholder="輸入關鍵字快速搜尋"
+              value={keyword}
+              onChange={(event) => setKeyword(event.target.value)}
+              onKeyDown={(event) => event.key === 'Enter' && handleSearch()}
+            />
+            <PrimaryButton type="button" onClick={handleSearch}>
+              搜尋
+            </PrimaryButton>
+            <PrimaryButton type="button" onClick={handleSync} $variant="ghost">
+              同步 WebDAV
+            </PrimaryButton>
+          </SearchBar>
+
+          {selectedBookmarks.size > 0 && (
+            <BatchToolbar>
+              <span style={{ color: '#cbd5e1' }}>已選擇 {selectedBookmarks.size} 項</span>
+              <SmallButton onClick={handleBatchDelete}>刪除</SmallButton>
+              <SmallButton onClick={handleBatchMove}>移動</SmallButton>
+              <SmallButton onClick={() => handleBatchFavorite(true)}>加入最愛</SmallButton>
+              <SmallButton onClick={() => handleBatchFavorite(false)}>取消最愛</SmallButton>
+              <SmallButton onClick={() => setSelectedBookmarks(new Set())}>取消選擇</SmallButton>
+            </BatchToolbar>
           )}
-        </ListContainer>
 
-        <Form onSubmit={handleSubmit}>
-          <Input placeholder="標題" value={form.title} onChange={(event) => setForm((prev) => ({ ...prev, title: event.target.value }))} />
-          <Input placeholder="分類（選填）" value={form.category} onChange={(event) => setForm((prev) => ({ ...prev, category: event.target.value }))} />
-          <FullWidth>
-            <Input placeholder="網址" value={form.url} onChange={(event) => setForm((prev) => ({ ...prev, url: event.target.value }))} />
-          </FullWidth>
-          <Input placeholder="標籤（以逗號分隔）" value={form.tags} onChange={(event) => setForm((prev) => ({ ...prev, tags: event.target.value }))} />
-          <PrimaryButton type="submit">{form.id ? '更新書籤' : '新增書籤'}</PrimaryButton>
-        </Form>
+          <ListContainer>
+            {loading ? (
+              <EmptyState>載入書籤中...</EmptyState>
+            ) : filteredBookmarks.length ? (
+              filteredBookmarks.map((bookmark) => (
+                <BookmarkCard key={bookmark.id}>
+                  <div style={{ display: 'flex', alignItems: 'start', gap: '12px' }}>
+                    <Checkbox
+                      type="checkbox"
+                      checked={selectedBookmarks.has(bookmark.id)}
+                      onChange={() => handleToggleBookmark(bookmark.id)}
+                    />
+                    <div style={{ flex: 1 }}>
+                      <BookmarkTitle>
+                        {bookmark.isFavorite && '⭐ '}
+                        {bookmark.title}
+                      </BookmarkTitle>
+                      <BookmarkMeta>
+                        <span>{bookmark.url}</span>
+                        {bookmark.category && <span>分類：{bookmark.category}</span>}
+                        {bookmark.tags && <span>標籤：{bookmark.tags}</span>}
+                        {bookmark.visitCount > 0 && <span>訪問：{bookmark.visitCount} 次</span>}
+                      </BookmarkMeta>
+                      <ActionRow>
+                        <PrimaryButton type="button" onClick={() => handleEdit(bookmark)}>
+                          編輯
+                        </PrimaryButton>
+                        <PrimaryButton
+                          type="button"
+                          $variant="ghost"
+                          onClick={() => handleDelete(bookmark.id)}
+                        >
+                          刪除
+                        </PrimaryButton>
+                      </ActionRow>
+                    </div>
+                  </div>
+                </BookmarkCard>
+              ))
+            ) : (
+              <EmptyState>尚未新增任何書籤</EmptyState>
+            )}
+          </ListContainer>
 
-        <Footer>{helperText}</Footer>
+          <Form onSubmit={handleSubmit}>
+            <Input
+              placeholder="標題"
+              value={form.title}
+              onChange={(event) => setForm((prev) => ({ ...prev, title: event.target.value }))}
+            />
+            <Input
+              placeholder="分類（選填）"
+              value={form.category}
+              onChange={(event) => setForm((prev) => ({ ...prev, category: event.target.value }))}
+            />
+            <FullWidth>
+              <Input
+                placeholder="網址"
+                value={form.url}
+                onChange={(event) => setForm((prev) => ({ ...prev, url: event.target.value }))}
+              />
+            </FullWidth>
+            <Input
+              placeholder="標籤（以逗號分隔）"
+              value={form.tags}
+              onChange={(event) => setForm((prev) => ({ ...prev, tags: event.target.value }))}
+            />
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Checkbox
+                type="checkbox"
+                checked={form.isFavorite}
+                onChange={(e) => setForm((prev) => ({ ...prev, isFavorite: e.target.checked }))}
+              />
+              <span style={{ color: '#cbd5e1', fontSize: '14px' }}>加入最愛</span>
+            </div>
+            <PrimaryButton type="submit">{form.id ? '更新書籤' : '新增書籤'}</PrimaryButton>
+          </Form>
+
+          <Footer>{helperText}</Footer>
+        </MainContent>
       </Panel>
     </Overlay>
   );

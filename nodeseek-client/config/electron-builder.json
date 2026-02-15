@@ -2,12 +2,7 @@
   "appId": "com.nodeseek.deepflood",
   "productName": "NodeSeek DeepFlood",
   "asar": true,
-  "files": [
-    "dist/main/**/*",
-    "dist/preload/**/*",
-    "dist/renderer/**/*",
-    "package.json"
-  ],
+  "files": ["dist/main/**/*", "dist/preload/**/*", "dist/renderer/**/*", "package.json"],
   "directories": {
     "output": "release",
     "buildResources": "assets"

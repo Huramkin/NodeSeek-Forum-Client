@@ -92,7 +92,13 @@ export const attachBrowserElectronApi = (): void => {
       remove: async (id) => {
         bookmarks = bookmarks.filter((bookmark) => bookmark.id !== id);
       },
-      search: async ({ keyword }) => bookmarks.filter((bookmark) => bookmark.title.includes(keyword) || bookmark.url.includes(keyword) || (bookmark.tags ?? '').includes(keyword)),
+      search: async ({ keyword }) =>
+        bookmarks.filter(
+          (bookmark) =>
+            bookmark.title.includes(keyword) ||
+            bookmark.url.includes(keyword) ||
+            (bookmark.tags ?? '').includes(keyword)
+        ),
       sync: async () => ({
         lastSync: new Date().toISOString(),
         syncHash: Math.random().toString(36).slice(2),
