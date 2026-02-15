@@ -12,8 +12,8 @@ export interface BookmarkRecord extends BookmarkInput {
   id: number;
   visitCount: number;
   lastVisited: string | null;
-  created_at: string;
-  updated_at: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface BookmarkUpdatePayload {
@@ -40,7 +40,7 @@ export interface BookmarkFolder {
   name: string;
   parentId: number | null;
   position: number;
-  created_at: string;
+  createdAt: string;
 }
 
 export interface BookmarkFolderInput {

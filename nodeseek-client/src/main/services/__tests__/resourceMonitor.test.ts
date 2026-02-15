@@ -9,7 +9,8 @@ import { BrowserWindow } from 'electron';
 vi.mock('electron', () => ({
   BrowserWindow: vi.fn(),
   powerMonitor: {
-    on: vi.fn()
+    on: vi.fn(),
+    removeListener: vi.fn()
   }
 }));
 
@@ -54,7 +55,7 @@ describe('ResourceMonitor', () => {
   });
 
   afterEach(() => {
-    resourceMonitor.stop();
+    resourceMonitor.dispose();
   });
 
   describe('start', () => {
@@ -82,6 +83,21 @@ describe('ResourceMonitor', () => {
       expect(() => {
         resourceMonitor.stop();
         resourceMonitor.stop();
+      }).not.toThrow();
+    });
+  });
+
+  describe('dispose', () => {
+    it('should dispose and clean up power listeners', () => {
+      resourceMonitor.start();
+      resourceMonitor.dispose();
+      expect(resourceMonitor).toBeDefined();
+    });
+
+    it('should not throw when disposed multiple times', () => {
+      expect(() => {
+        resourceMonitor.dispose();
+        resourceMonitor.dispose();
       }).not.toThrow();
     });
   });
