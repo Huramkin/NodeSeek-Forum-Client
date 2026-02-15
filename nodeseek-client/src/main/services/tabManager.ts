@@ -44,17 +44,23 @@ export class TabManager extends EventEmitter {
       return this.getSnapshot();
     }
 
-    this.tabs.delete(id);
+    // 如果关闭的是当前激活的标签页，选择相邻的标签页
     if (this.activeTabId === id) {
-      const nextTab = Array.from(this.tabs.values())[0];
+      const tabsArray = Array.from(this.tabs.values());
+      const closingIndex = tabsArray.findIndex((t) => t.id === id);
+      // 优先选择右侧，若无则选左侧
+      const nextTab = tabsArray[closingIndex + 1] ?? tabsArray[closingIndex - 1] ?? null;
       this.activeTabId = nextTab?.id ?? null;
       if (nextTab) {
         nextTab.isActive = true;
       }
     }
+
+    this.tabs.delete(id);
     if (!this.tabs.size) {
       this.createTab({});
     }
+    this.emitStateChanged();
     return this.getSnapshot();
   }
 

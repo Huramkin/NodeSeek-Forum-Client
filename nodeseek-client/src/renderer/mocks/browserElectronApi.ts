@@ -1,6 +1,6 @@
 import { defaultConfig } from '@shared/config/defaults';
 import { TabSnapshot } from '@shared/types/tabs';
-import { BookmarkRecord } from '@shared/types/bookmarks';
+import { BookmarkRecord, BookmarkFolder } from '@shared/types/bookmarks';
 import type { ElectronApi } from '../../preload';
 
 const createMockSnapshot = (): TabSnapshot => ({
@@ -28,6 +28,8 @@ const createMockBookmarks = (): BookmarkRecord[] => [
     url: 'https://nodeseek.com/',
     category: '論壇',
     tags: '社群,技術',
+    visitCount: 0,
+    lastVisited: null,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString()
   }
@@ -40,6 +42,8 @@ export const attachBrowserElectronApi = (): void => {
 
   let snapshot = createMockSnapshot();
   let bookmarks = createMockBookmarks();
+  let folders: BookmarkFolder[] = [];
+  let nextFolderId = 1;
 
   const electronApi: ElectronApi = {
     tabs: {
@@ -72,6 +76,10 @@ export const attachBrowserElectronApi = (): void => {
           url: payload.url,
           category: payload.category,
           tags: payload.tags,
+          folderId: payload.folderId,
+          isFavorite: payload.isFavorite,
+          visitCount: 0,
+          lastVisited: null,
           created_at: now,
           updated_at: now
         };
@@ -103,7 +111,54 @@ export const attachBrowserElectronApi = (): void => {
         lastSync: new Date().toISOString(),
         syncHash: Math.random().toString(36).slice(2),
         source: 'local' as const
-      })
+      }),
+      incrementVisit: async (id) => {
+        bookmarks = bookmarks.map((bookmark) =>
+          bookmark.id === id
+            ? { ...bookmark, visitCount: (bookmark.visitCount ?? 0) + 1, lastVisited: new Date().toISOString() }
+            : bookmark
+        );
+      },
+      batch: async ({ ids, operation, folderId }) => {
+        switch (operation) {
+          case 'delete':
+            bookmarks = bookmarks.filter((b) => !ids.includes(b.id));
+            break;
+          case 'move':
+            bookmarks = bookmarks.map((b) => (ids.includes(b.id) ? { ...b, folderId } : b));
+            break;
+          case 'favorite':
+            bookmarks = bookmarks.map((b) => (ids.includes(b.id) ? { ...b, isFavorite: true } : b));
+            break;
+          case 'unfavorite':
+            bookmarks = bookmarks.map((b) => (ids.includes(b.id) ? { ...b, isFavorite: false } : b));
+            break;
+        }
+      }
+    },
+    folders: {
+      list: async () => folders,
+      create: async (payload) => {
+        const id = nextFolderId++;
+        folders.push({
+          id,
+          accountId: payload.accountId,
+          name: payload.name,
+          parentId: payload.parentId ?? null,
+          position: payload.position ?? 0,
+          created_at: new Date().toISOString()
+        });
+        return id;
+      },
+      update: async ({ id, data }) => {
+        folders = folders.map((f) => (f.id === id ? { ...f, ...data } : f));
+      },
+      remove: async (id, moveToFolder) => {
+        bookmarks = bookmarks.map((b) =>
+          b.folderId === id ? { ...b, folderId: moveToFolder ?? undefined } : b
+        );
+        folders = folders.filter((f) => f.id !== id);
+      }
     }
   };
 

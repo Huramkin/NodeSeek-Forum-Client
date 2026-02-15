@@ -3,6 +3,7 @@
   "compilerOptions": {
     "outDir": "dist/preload",
     "module": "NodeNext",
+    "moduleResolution": "NodeNext",
     "types": ["node", "electron"]
   },
   "include": ["src/preload", "src/shared"]
