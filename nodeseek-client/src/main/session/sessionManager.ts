@@ -1,5 +1,6 @@
 import { session, CookiesGetFilter, CookiesSetDetails } from 'electron';
 import type { Cookie } from 'electron';
+import Store from 'electron-store';
 import { AppConfig } from '@shared/types/config';
 
 export interface StoredCookie {
@@ -15,11 +16,69 @@ export interface StoredCookie {
 
 const WEBVIEW_PARTITION = 'persist:nodeseek';
 
+interface SessionState {
+  [key: string]: StoredCookie[];
+}
+
 export class SessionManager {
   private cache = new Map<string, StoredCookie[]>();
   private readonly partitionSession = session.fromPartition(WEBVIEW_PARTITION);
+  private readonly store: Store;
 
-  constructor(private readonly config: AppConfig) {}
+  constructor(private readonly config: AppConfig) {
+    this.store = new Store({
+      name: 'session-state'
+    });
+    // Load persisted sessions on startup
+    this.loadPersistedSessions();
+  }
+
+  /**
+   * Load persisted cookie snapshots from disk
+   */
+  private loadPersistedSessions(): void {
+    if (!this.config.session.persistCookies) {
+      return;
+    }
+
+    try {
+      const savedState = this.store.get('sessions') as SessionState | undefined;
+      if (savedState) {
+        for (const [key, cookies] of Object.entries(savedState)) {
+          this.cache.set(key, cookies);
+        }
+        console.log(`[SessionManager] Restored ${this.cache.size} session(s) from disk`);
+      }
+    } catch (error) {
+      console.error('[SessionManager] Failed to load persisted sessions:', error);
+    }
+  }
+
+  /**
+   * Persist cookie snapshots to disk
+   */
+  private savePersistedSessions(): void {
+    if (!this.config.session.persistCookies) {
+      return;
+    }
+
+    try {
+      const state: SessionState = {};
+      for (const [key, cookies] of this.cache.entries()) {
+        state[key] = cookies;
+      }
+      this.store.set('sessions', state);
+    } catch (error) {
+      console.error('[SessionManager] Failed to save persisted sessions:', error);
+    }
+  }
+
+  /**
+   * Cleanup and save final state
+   */
+  dispose(): void {
+    this.savePersistedSessions();
+  }
 
   async captureSnapshot(key: string): Promise<void> {
     if (!this.config.session.persistCookies) {
@@ -29,6 +88,7 @@ export class SessionManager {
       domain: this.config.session.cookieDomain
     } satisfies CookiesGetFilter);
     this.cache.set(key, cookies as StoredCookie[]);
+    this.savePersistedSessions();
   }
 
   async restoreSnapshot(key: string): Promise<void> {
@@ -47,6 +107,7 @@ export class SessionManager {
 
   dropSnapshot(key: string): void {
     this.cache.delete(key);
+    this.savePersistedSessions();
   }
 
   async clearCookies(key?: string): Promise<void> {
@@ -55,6 +116,7 @@ export class SessionManager {
     } else {
       this.cache.clear();
     }
+    this.savePersistedSessions();
     const cookies = await this.partitionSession.cookies.get({});
     await Promise.all(
       cookies.map((cookie) =>

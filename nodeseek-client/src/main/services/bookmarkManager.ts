@@ -24,6 +24,27 @@ const MAX_RETRY_ATTEMPTS = 3;
 const RETRY_DELAY_MS = 2000;
 
 /**
+ * Maps database column names (snake_case) to TypeScript property names (camelCase)
+ */
+function mapDbRowToObject<T>(row: any): T {
+  if (!row) return row;
+  
+  const mapped: any = {};
+  for (const [key, value] of Object.entries(row)) {
+    // Convert snake_case to camelCase
+    const camelKey = key.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase());
+    
+    // Convert SQLite integers to booleans for boolean fields
+    if (key === 'is_favorite' || key === 'is_suspended' || key === 'is_loading' || key === 'is_active') {
+      mapped[camelKey] = value === 1;
+    } else {
+      mapped[camelKey] = value;
+    }
+  }
+  return mapped as T;
+}
+
+/**
  * Manages bookmarks and bookmark folders for the application.
  * Provides CRUD operations, search functionality, and WebDAV synchronization.
  *
@@ -44,8 +65,11 @@ export class BookmarkManager {
     private readonly configService: ConfigService,
     databaseName = 'nodeseek.db'
   ) {
-    const userDataPath = app.getPath('userData');
-    const dbPath = path.join(userDataPath, databaseName);
+    // If databaseName is an absolute path, use it directly (for testing)
+    // Otherwise, construct path in userData directory
+    const dbPath = path.isAbsolute(databaseName)
+      ? databaseName
+      : path.join(app.getPath('userData'), databaseName);
     this.db = new sqlite3.Database(dbPath);
     this.bootstrapSchema();
     void this.refreshWebDavClient();
@@ -619,7 +643,9 @@ export class BookmarkManager {
           reject(error);
           return;
         }
-        resolve(rows as T[]);
+        // Map database rows to camelCase properties
+        const mappedRows = rows.map((row: any) => mapDbRowToObject<T>(row));
+        resolve(mappedRows);
       });
     });
   }
@@ -631,7 +657,9 @@ export class BookmarkManager {
           reject(error);
           return;
         }
-        resolve(row as T | undefined);
+        // Map database row to camelCase properties
+        const mappedRow = row ? mapDbRowToObject<T>(row) : undefined;
+        resolve(mappedRow);
       });
     });
   }

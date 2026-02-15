@@ -81,11 +81,33 @@ const foldersApi = {
     ipcRenderer.invoke(IPCChannels.FOLDER_DELETE, id, moveToFolder)
 };
 
+interface LoginResult {
+  success: boolean;
+  accountId: string;
+  username: string;
+}
+
+interface Account {
+  id: string;
+  username: string;
+  displayName?: string;
+}
+
+const authApi = {
+  login: (username: string, password: string): Promise<LoginResult> =>
+    ipcRenderer.invoke(IPCChannels.AUTH_LOGIN, username, password),
+  logout: (accountId: string): Promise<{ success: boolean }> =>
+    ipcRenderer.invoke(IPCChannels.AUTH_LOGOUT, accountId),
+  getCurrentUser: (): Promise<Account | null> => ipcRenderer.invoke(IPCChannels.AUTH_GET_CURRENT),
+  listAccounts: (): Promise<Account[]> => ipcRenderer.invoke(IPCChannels.AUTH_LIST_ACCOUNTS)
+};
+
 const electronAPI = {
   tabs: tabsApi,
   config: configApi,
   bookmarks: bookmarksApi,
-  folders: foldersApi
+  folders: foldersApi,
+  auth: authApi
 };
 
 contextBridge.exposeInMainWorld('electronAPI', electronAPI);
