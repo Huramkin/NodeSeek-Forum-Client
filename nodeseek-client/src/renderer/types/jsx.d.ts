@@ -1,6 +1,7 @@
 interface HTMLWebViewElement extends HTMLElement {
   src: string;
   reload(): void;
+  reloadIgnoringCache(): void;
   loadURL(url: string): void;
   canGoBack(): boolean;
   canGoForward(): boolean;
@@ -14,7 +15,8 @@ declare namespace JSX {
     webview: React.DetailedHTMLProps<React.HTMLAttributes<HTMLWebViewElement>, HTMLWebViewElement> & {
       src?: string;
       partition?: string;
-      allowpopups?: boolean;
+      allowpopups?: string;
+      'data-tab-id'?: string;
     };
   }
 }

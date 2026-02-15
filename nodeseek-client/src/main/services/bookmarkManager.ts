@@ -112,14 +112,28 @@ export class BookmarkManager {
   }
 
   async updateBookmark(payload: BookmarkUpdatePayload): Promise<void> {
+    // 白名单：仅允许更新以下字段，防止 SQL 注入
+    const ALLOWED_FIELDS: Record<string, string> = {
+      title: 'title',
+      url: 'url',
+      category: 'category',
+      tags: 'tags',
+      folderId: 'folder_id',
+      isFavorite: 'is_favorite'
+    };
+
     const fields: string[] = [];
     const values: unknown[] = [];
     Object.entries(payload.data).forEach(([key, value]) => {
       if (value === undefined) {
         return;
       }
-      fields.push(`${key} = ?`);
-      values.push(value);
+      const dbColumn = ALLOWED_FIELDS[key];
+      if (!dbColumn) {
+        return; // 忽略不在白名单中的字段
+      }
+      fields.push(`${dbColumn} = ?`);
+      values.push(key === 'isFavorite' ? (value ? 1 : 0) : value);
     });
 
     if (!fields.length) {
@@ -193,15 +207,24 @@ export class BookmarkManager {
   }
 
   async updateFolder(payload: BookmarkFolderUpdatePayload): Promise<void> {
+    // 白名单：仅允许更新以下字段，防止 SQL 注入
+    const ALLOWED_FIELDS: Record<string, string> = {
+      name: 'name',
+      parentId: 'parent_id',
+      position: 'position'
+    };
+
     const fields: string[] = [];
     const values: unknown[] = [];
     Object.entries(payload.data).forEach(([key, value]) => {
       if (value === undefined) {
         return;
       }
-      // Convert camelCase to snake_case for database
-      const dbKey = key.replace(/([A-Z])/g, '_$1').toLowerCase();
-      fields.push(`${dbKey} = ?`);
+      const dbColumn = ALLOWED_FIELDS[key];
+      if (!dbColumn) {
+        return; // 忽略不在白名单中的字段
+      }
+      fields.push(`${dbColumn} = ?`);
       values.push(value);
     });
 
@@ -549,33 +572,6 @@ export class BookmarkManager {
 
   private async listAll(): Promise<BookmarkRecord[]> {
     return this.all<BookmarkRecord>(`SELECT * FROM bookmarks ORDER BY created_at DESC`);
-  }
-
-  private async replaceAllBookmarks(records: BookmarkRecord[]): Promise<void> {
-    await this.run('BEGIN TRANSACTION');
-    try {
-      await this.run('DELETE FROM bookmarks');
-      for (const record of records) {
-        await this.run(
-          `INSERT INTO bookmarks (id, account_id, title, url, category, tags, created_at, updated_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-          [
-            record.id,
-            record.accountId,
-            record.title,
-            record.url,
-            record.category ?? null,
-            record.tags ?? null,
-            record.created_at,
-            record.updated_at
-          ]
-        );
-      }
-      await this.run('COMMIT');
-    } catch (error) {
-      await this.run('ROLLBACK').catch(() => {});
-      throw error;
-    }
   }
 
   private async upsertSyncStatus(payload: string, source: 'local' | 'remote'): Promise<BookmarkSyncResult> {

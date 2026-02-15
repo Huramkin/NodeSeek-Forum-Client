@@ -8,7 +8,8 @@ export const normalizeAddress = (raw: string): string => {
     return trimmed;
   }
 
-  if (/^[\w.-]+\.[a-z]{2,}$/i.test(trimmed)) {
+  // 匹配裸域名，支持带路径、查询参数和锚点
+  if (/^[\w.-]+\.[a-z]{2,}(\/[^\s]*)?$/i.test(trimmed)) {
     return `https://${trimmed}`;
   }
 

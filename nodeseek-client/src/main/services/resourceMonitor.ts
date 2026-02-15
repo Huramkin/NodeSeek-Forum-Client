@@ -34,13 +34,19 @@ export class ResourceMonitor {
   private consecutiveSuspensions = 0;
   private lastSuspensionTime = 0;
   private readonly MIN_SUSPENSION_INTERVAL = 30000; // 30 seconds between suspensions
+  private boundSuspendHandler: () => void;
+  private boundResumeHandler: () => void;
+  private powerListenersAttached = false;
 
   constructor(
     private readonly window: BrowserWindow,
     private readonly tabManager: TabManager,
     private readonly configService: ConfigService,
     private readonly sessionManager: SessionManager
-  ) {}
+  ) {
+    this.boundSuspendHandler = () => this.stop();
+    this.boundResumeHandler = () => this.start();
+  }
 
   start(): void {
     this.stop();
@@ -49,14 +55,26 @@ export class ResourceMonitor {
       void this.collectAndAct();
     }, checkInterval);
 
-    powerMonitor.on('suspend', () => this.stop());
-    powerMonitor.on('resume', () => this.start());
+    if (!this.powerListenersAttached) {
+      powerMonitor.on('suspend', this.boundSuspendHandler);
+      powerMonitor.on('resume', this.boundResumeHandler);
+      this.powerListenersAttached = true;
+    }
   }
 
   stop(): void {
     if (this.intervalHandle) {
       clearInterval(this.intervalHandle);
       this.intervalHandle = undefined;
+    }
+  }
+
+  dispose(): void {
+    this.stop();
+    if (this.powerListenersAttached) {
+      powerMonitor.removeListener('suspend', this.boundSuspendHandler);
+      powerMonitor.removeListener('resume', this.boundResumeHandler);
+      this.powerListenersAttached = false;
     }
   }
 
@@ -68,10 +86,9 @@ export class ResourceMonitor {
     const limits = this.configService.getConfig().resourceLimits;
     const now = Date.now();
     
-    // Electron 沒有針對單一 webview 的指標，此處先使用主進程快照佔位
-    const memoryUsage = await process.getProcessMemoryInfo?.();
-    const rss = memoryUsage?.residentSet ?? 0;
-    const rssMB = Math.round(rss / 1024);
+    // 使用 Node.js 原生 process.memoryUsage() 取得主進程記憶體資訊
+    const memoryUsage = process.memoryUsage();
+    const rssMB = Math.round(memoryUsage.rss / 1024 / 1024);
     
     // Use moving average of CPU load for more stable readings
     const loadAvg = os.loadavg();
