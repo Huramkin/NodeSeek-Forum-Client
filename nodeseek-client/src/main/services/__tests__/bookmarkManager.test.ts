@@ -224,7 +224,8 @@ describe('BookmarkManager', () => {
       expect(folders).toHaveLength(0);
 
       const bookmarks = await bookmarkManager.listBookmarks(1);
-      expect(bookmarks[0].folderId).toBeUndefined();
+      // SQLite returns null for NULL values, not undefined
+      expect(bookmarks[0].folderId).toBeNull();
     });
   });
 

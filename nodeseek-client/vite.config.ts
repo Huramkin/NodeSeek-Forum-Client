@@ -24,6 +24,8 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'node',
+    setupFiles: ['./src/main/services/__tests__/setup.ts'],
+    exclude: ['**/node_modules/**', '**/dist/**', '**/tests/e2e/**'],
     coverage: {
       reporter: ['text', 'html'],
       reportsDirectory: 'coverage/unit'

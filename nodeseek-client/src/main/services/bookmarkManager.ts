@@ -33,7 +33,13 @@ function mapDbRowToObject<T>(row: any): T {
   for (const [key, value] of Object.entries(row)) {
     // Convert snake_case to camelCase
     const camelKey = key.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase());
-    mapped[camelKey] = value;
+    
+    // Convert SQLite integers to booleans for boolean fields
+    if (key === 'is_favorite' || key === 'is_suspended' || key === 'is_loading' || key === 'is_active') {
+      mapped[camelKey] = value === 1;
+    } else {
+      mapped[camelKey] = value;
+    }
   }
   return mapped as T;
 }
@@ -59,8 +65,11 @@ export class BookmarkManager {
     private readonly configService: ConfigService,
     databaseName = 'nodeseek.db'
   ) {
-    const userDataPath = app.getPath('userData');
-    const dbPath = path.join(userDataPath, databaseName);
+    // If databaseName is an absolute path, use it directly (for testing)
+    // Otherwise, construct path in userData directory
+    const dbPath = path.isAbsolute(databaseName)
+      ? databaseName
+      : path.join(app.getPath('userData'), databaseName);
     this.db = new sqlite3.Database(dbPath);
     this.bootstrapSchema();
     void this.refreshWebDavClient();
