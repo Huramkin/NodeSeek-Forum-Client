@@ -473,13 +473,13 @@ export class BookmarkManager {
               remoteFolder.name,
               remoteFolder.parentId,
               remoteFolder.position,
-              remoteFolder.created_at
+              remoteFolder.createdAt
             ]
           );
         } else {
           // Update if remote is newer
-          const localDate = new Date(localFolder.created_at);
-          const remoteDate = new Date(remoteFolder.created_at);
+          const localDate = new Date(localFolder.createdAt);
+          const remoteDate = new Date(remoteFolder.createdAt);
           if (remoteDate > localDate) {
             await this.run(`UPDATE bookmark_folders SET name = ?, parent_id = ?, position = ? WHERE id = ?`, [
               remoteFolder.name,
@@ -513,14 +513,14 @@ export class BookmarkManager {
               remoteBookmark.isFavorite ? 1 : 0,
               remoteBookmark.visitCount,
               remoteBookmark.lastVisited,
-              remoteBookmark.created_at,
-              remoteBookmark.updated_at
+              remoteBookmark.createdAt,
+              remoteBookmark.updatedAt
             ]
           );
         } else {
           // Merge: prefer remote if it's newer, but keep local visit_count
-          const localDate = new Date(localBookmark.updated_at);
-          const remoteDate = new Date(remoteBookmark.updated_at);
+          const localDate = new Date(localBookmark.updatedAt);
+          const remoteDate = new Date(remoteBookmark.updatedAt);
           if (remoteDate > localDate) {
             await this.run(
               `UPDATE bookmarks SET title = ?, url = ?, category = ?, tags = ?, folder_id = ?, is_favorite = ?, updated_at = ? WHERE id = ?`,
@@ -531,7 +531,7 @@ export class BookmarkManager {
                 remoteBookmark.tags,
                 remoteBookmark.folderId,
                 remoteBookmark.isFavorite ? 1 : 0,
-                remoteBookmark.updated_at,
+                remoteBookmark.updatedAt,
                 remoteBookmark.id
               ]
             );
@@ -566,8 +566,8 @@ export class BookmarkManager {
   }
 
   private async getLocalSyncHash(): Promise<string | null> {
-    const status = await this.get<{ sync_hash: string }>(`SELECT sync_hash FROM sync_status WHERE id = 1`);
-    return status?.sync_hash ?? null;
+    const status = await this.get<{ syncHash: string }>(`SELECT sync_hash FROM sync_status WHERE id = 1`);
+    return status?.syncHash ?? null;
   }
 
   private async getRemoteSyncHash(): Promise<string | null> {

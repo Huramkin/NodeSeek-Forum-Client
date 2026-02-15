@@ -30,8 +30,8 @@ const createMockBookmarks = (): BookmarkRecord[] => [
     tags: '社群,技術',
     visitCount: 0,
     lastVisited: null,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString()
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
   }
 ];
 
@@ -80,8 +80,8 @@ export const attachBrowserElectronApi = (): void => {
           isFavorite: payload.isFavorite,
           visitCount: 0,
           lastVisited: null,
-          created_at: now,
-          updated_at: now
+          createdAt: now,
+          updatedAt: now
         };
         bookmarks = [record, ...bookmarks];
         return record.id;
@@ -92,7 +92,7 @@ export const attachBrowserElectronApi = (): void => {
             ? {
                 ...bookmark,
                 ...data,
-                updated_at: new Date().toISOString()
+                updatedAt: new Date().toISOString()
               }
             : bookmark
         );
@@ -146,7 +146,7 @@ export const attachBrowserElectronApi = (): void => {
           name: payload.name,
           parentId: payload.parentId ?? null,
           position: payload.position ?? 0,
-          created_at: new Date().toISOString()
+          createdAt: new Date().toISOString()
         });
         return id;
       },

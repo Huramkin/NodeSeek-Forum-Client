@@ -4,7 +4,7 @@ import styled from 'styled-components';
 interface LoginPanelProps {
   open: boolean;
   onClose: () => void;
-  onLogin: (username: string, password: string) => void;
+  onLogin: (username: string, password: string) => Promise<void>;
 }
 
 const Overlay = styled.div<{ $open: boolean }>`
@@ -257,8 +257,8 @@ export const LoginPanel = ({ open, onClose, onLogin }: LoginPanelProps) => {
     setMessage({ type: 'info', text: '正在登錄...' });
 
     try {
-      // Call the login callback
-      onLogin(username, password);
+      // Call the login callback and wait for it to complete
+      await onLogin(username, password);
       setMessage({ type: 'success', text: '登錄成功！' });
       
       // Close panel after a short delay

@@ -185,8 +185,8 @@ export const AddressBar = ({ onOpenBookmarks, onOpenSettings, onOpenLogin, curre
           isFavorite: false,
           visitCount: 0,
           lastVisited: null,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
         };
 
         setBookmarks((prev) => [...prev, newBookmark]);
