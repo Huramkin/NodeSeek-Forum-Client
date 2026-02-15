@@ -75,7 +75,12 @@ export const AddressBar = ({ onOpenBookmarks }: AddressBarProps) => {
     if (!activeTab) {
       return;
     }
-    void window.electronAPI.tabs.refresh({ id: activeTab.id, url: activeTab.url, mode: 'hard', reason: 'user' });
+    void window.electronAPI.tabs.refresh({
+      id: activeTab.id,
+      url: activeTab.url,
+      mode: 'hard',
+      reason: 'user'
+    });
   };
 
   const handleForceUnload = () => {
@@ -117,7 +122,12 @@ export const AddressBar = ({ onOpenBookmarks }: AddressBarProps) => {
         ★
       </Button>
       <form style={{ flex: 1 }} onSubmit={handleSubmit}>
-        <Input value={address} onChange={(event) => setAddress(event.target.value)} spellCheck={false} placeholder="輸入 NodeSeek 帖子連結或關鍵字" />
+        <Input
+          value={address}
+          onChange={(event) => setAddress(event.target.value)}
+          spellCheck={false}
+          placeholder="輸入 NodeSeek 帖子連結或關鍵字"
+        />
       </form>
     </Container>
   );

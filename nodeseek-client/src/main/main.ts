@@ -1,14 +1,26 @@
 import path from 'node:path';
 import { app, BrowserWindow, ipcMain, nativeTheme } from 'electron';
 import { IPCChannels } from '@shared/ipcChannels';
-import { CreateTabPayload, NavigateTabPayload, ReloadTabPayload, UpdateTabMetaPayload } from '@shared/types/tabs';
+import {
+  CreateTabPayload,
+  NavigateTabPayload,
+  ReloadTabPayload,
+  UpdateTabMetaPayload
+} from '@shared/types/tabs';
 import { TabManager } from './services/tabManager';
 import { ConfigService } from './services/configService';
 import { ResourceMonitor } from './services/resourceMonitor';
 import { SessionManager } from './session/sessionManager';
 import { AuthManager } from './auth/authManager';
 import { BookmarkManager } from './services/bookmarkManager';
-import { BookmarkInput, BookmarkSearchPayload, BookmarkUpdatePayload } from '@shared/types/bookmarks';
+import {
+  BookmarkInput,
+  BookmarkSearchPayload,
+  BookmarkUpdatePayload,
+  BookmarkFolderInput,
+  BookmarkFolderUpdatePayload,
+  BatchBookmarkOperation
+} from '@shared/types/bookmarks';
 
 let mainWindow: BrowserWindow | null = null;
 let tabManager: TabManager;
@@ -71,8 +83,12 @@ const registerIpcHandlers = (): void => {
     return tabManager.closeTab(tabId);
   });
   ipcMain.handle(IPCChannels.TABS_ACTIVATE, (_, tabId: string) => tabManager.setActiveTab(tabId));
-  ipcMain.handle(IPCChannels.TABS_NAVIGATE, (_, payload: NavigateTabPayload) => tabManager.navigateTab(payload.id, payload.url));
-  ipcMain.handle(IPCChannels.TABS_UPDATE_META, (_, payload: UpdateTabMetaPayload) => tabManager.updateTabMeta(payload));
+  ipcMain.handle(IPCChannels.TABS_NAVIGATE, (_, payload: NavigateTabPayload) =>
+    tabManager.navigateTab(payload.id, payload.url)
+  );
+  ipcMain.handle(IPCChannels.TABS_UPDATE_META, (_, payload: UpdateTabMetaPayload) =>
+    tabManager.updateTabMeta(payload)
+  );
   ipcMain.handle(IPCChannels.TABS_REFRESH, async (_, payload: ReloadTabPayload) => {
     if (!payload?.id) {
       return tabManager.getSnapshot();
@@ -97,18 +113,45 @@ const registerIpcHandlers = (): void => {
     await bookmarkManager.refreshWebDavClient();
     return merged;
   });
-  ipcMain.handle(IPCChannels.BOOKMARK_LIST, (_, accountId: number) => bookmarkManager.listBookmarks(accountId));
-  ipcMain.handle(IPCChannels.BOOKMARK_ADD, (_, payload: BookmarkInput) => bookmarkManager.addBookmark(payload));
-  ipcMain.handle(IPCChannels.BOOKMARK_UPDATE, (_, payload: BookmarkUpdatePayload) => bookmarkManager.updateBookmark(payload));
+  ipcMain.handle(IPCChannels.BOOKMARK_LIST, (_, accountId: number) =>
+    bookmarkManager.listBookmarks(accountId)
+  );
+  ipcMain.handle(IPCChannels.BOOKMARK_ADD, (_, payload: BookmarkInput) =>
+    bookmarkManager.addBookmark(payload)
+  );
+  ipcMain.handle(IPCChannels.BOOKMARK_UPDATE, (_, payload: BookmarkUpdatePayload) =>
+    bookmarkManager.updateBookmark(payload)
+  );
   ipcMain.handle(IPCChannels.BOOKMARK_DELETE, (_, id: number) => bookmarkManager.deleteBookmark(id));
-  ipcMain.handle(IPCChannels.BOOKMARK_SEARCH, (_, payload: BookmarkSearchPayload) => bookmarkManager.search(payload));
+  ipcMain.handle(IPCChannels.BOOKMARK_SEARCH, (_, payload: BookmarkSearchPayload) =>
+    bookmarkManager.search(payload)
+  );
   ipcMain.handle(IPCChannels.BOOKMARK_SYNC, () => bookmarkManager.triggerManualSync());
+  ipcMain.handle(IPCChannels.BOOKMARK_INCREMENT_VISIT, (_, id: number) =>
+    bookmarkManager.incrementVisitCount(id)
+  );
+  ipcMain.handle(IPCChannels.BOOKMARK_BATCH, (_, payload: BatchBookmarkOperation) =>
+    bookmarkManager.batchOperation(payload)
+  );
+  ipcMain.handle(IPCChannels.FOLDER_LIST, (_, accountId: number) => bookmarkManager.listFolders(accountId));
+  ipcMain.handle(IPCChannels.FOLDER_CREATE, (_, payload: BookmarkFolderInput) =>
+    bookmarkManager.createFolder(payload)
+  );
+  ipcMain.handle(IPCChannels.FOLDER_UPDATE, (_, payload: BookmarkFolderUpdatePayload) =>
+    bookmarkManager.updateFolder(payload)
+  );
+  ipcMain.handle(IPCChannels.FOLDER_DELETE, (_, id: number, moveToFolder?: number) =>
+    bookmarkManager.deleteFolder(id, moveToFolder)
+  );
 };
 
-app.whenReady().then(createWindow).catch((error) => {
-  console.error('[main] failed to create window', error);
-  app.quit();
-});
+app
+  .whenReady()
+  .then(createWindow)
+  .catch((error) => {
+    console.error('[main] failed to create window', error);
+    app.quit();
+  });
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {

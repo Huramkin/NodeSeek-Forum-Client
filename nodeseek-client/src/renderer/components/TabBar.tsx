@@ -100,7 +100,11 @@ export const TabBar = () => {
     <Container>
       {tabs.map((tab) => (
         <Tab key={tab.id} $active={tab.id === activeTabId} onClick={() => handleActivate(tab.id)}>
-          <Favicon src={tab.favicon ?? DEFAULT_FAVICON} alt="" onError={(event) => ((event.currentTarget.src = DEFAULT_FAVICON))} />
+          <Favicon
+            src={tab.favicon ?? DEFAULT_FAVICON}
+            alt=""
+            onError={(event) => (event.currentTarget.src = DEFAULT_FAVICON)}
+          />
           <Title>{tab.title}</Title>
           <CloseButton
             onClick={(event) => {

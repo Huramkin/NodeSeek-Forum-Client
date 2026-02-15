@@ -37,7 +37,7 @@ function mergeDeep<T extends Record<string, any>>(target: T, source: Partial<T>)
     }
 
     if (typeof value === 'object' && value !== null) {
-      (target as any)[key] = mergeDeep({ ...(target as any)[key] } ?? {}, value);
+      (target as any)[key] = mergeDeep((target as any)[key] ?? {}, value);
       return;
     }
 

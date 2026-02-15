@@ -16,7 +16,13 @@ export const IPCChannels = {
   BOOKMARK_UPDATE: 'bookmarks:update',
   BOOKMARK_DELETE: 'bookmarks:delete',
   BOOKMARK_SEARCH: 'bookmarks:search',
-  BOOKMARK_SYNC: 'bookmarks:sync'
+  BOOKMARK_SYNC: 'bookmarks:sync',
+  BOOKMARK_INCREMENT_VISIT: 'bookmarks:increment-visit',
+  BOOKMARK_BATCH: 'bookmarks:batch',
+  FOLDER_LIST: 'folders:list',
+  FOLDER_CREATE: 'folders:create',
+  FOLDER_UPDATE: 'folders:update',
+  FOLDER_DELETE: 'folders:delete'
 } as const;
 
 export type IPCChannel = (typeof IPCChannels)[keyof typeof IPCChannels];

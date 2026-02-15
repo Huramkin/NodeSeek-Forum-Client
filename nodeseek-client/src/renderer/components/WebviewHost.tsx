@@ -51,7 +51,17 @@ const WebviewElement = styled.webview`
   background: #0c0d12;
 `;
 
-const WebviewItem = ({ tabId, url, isActive, isSuspended }: { tabId: string; url: string; isActive: boolean; isSuspended: boolean }) => {
+const WebviewItem = ({
+  tabId,
+  url,
+  isActive,
+  isSuspended
+}: {
+  tabId: string;
+  url: string;
+  isActive: boolean;
+  isSuspended: boolean;
+}) => {
   const ref = useRef<HTMLWebViewElement | null>(null);
 
   useEffect(() => {
@@ -130,7 +140,13 @@ const WebviewItem = ({ tabId, url, isActive, isSuspended }: { tabId: string; url
   return (
     <WebviewLayer $active={isActive}>
       {!isSuspended ? (
-        <WebviewElement ref={ref} data-tab-id={tabId} partition="persist:nodeseek" allowpopups="true" src={url} />
+        <WebviewElement
+          ref={ref}
+          data-tab-id={tabId}
+          partition="persist:nodeseek"
+          allowpopups="true"
+          src={url}
+        />
       ) : (
         <SuspendedOverlay>
           <p>此標籤頁因資源限制已卸載</p>
@@ -146,7 +162,9 @@ export const WebviewHost = () => {
 
   useEffect(() => {
     const unsubscribeReload = window.electronAPI.tabs.onReload((payload) => {
-      const view = document.querySelector(`webview[data-tab-id="${payload.id}"]`) as HTMLWebViewElement | null;
+      const view = document.querySelector(
+        `webview[data-tab-id="${payload.id}"]`
+      ) as HTMLWebViewElement | null;
       if (!view) {
         return;
       }
@@ -178,7 +196,13 @@ export const WebviewHost = () => {
   return (
     <Container>
       {tabs.map((tab) => (
-        <WebviewItem key={tab.id} tabId={tab.id} url={tab.url} isActive={tab.id === activeTabId} isSuspended={tab.isSuspended} />
+        <WebviewItem
+          key={tab.id}
+          tabId={tab.id}
+          url={tab.url}
+          isActive={tab.id === activeTabId}
+          isSuspended={tab.isSuspended}
+        />
       ))}
     </Container>
   );

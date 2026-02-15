@@ -1,4 +1,5 @@
-import { session, CookiesGetFilter, CookiesSetDetails, Cookies } from 'electron';
+import { session, CookiesGetFilter, CookiesSetDetails } from 'electron';
+import type { Cookie } from 'electron';
 import { AppConfig } from '@shared/types/config';
 
 export interface StoredCookie {
@@ -56,7 +57,9 @@ export class SessionManager {
     }
     const cookies = await this.partitionSession.cookies.get({});
     await Promise.all(
-      cookies.map((cookie) => this.partitionSession.cookies.remove(this.composeCookieUrl(cookie), cookie.name))
+      cookies.map((cookie) =>
+        this.partitionSession.cookies.remove(this.composeCookieUrl(cookie), cookie.name)
+      )
     );
   }
 
@@ -72,13 +75,15 @@ export class SessionManager {
       domain: this.config.session.cookieDomain
     } satisfies CookiesGetFilter);
     await Promise.all(
-      domainCookies.map((cookie) => this.partitionSession.cookies.remove(this.composeCookieUrl(cookie), cookie.name))
+      domainCookies.map((cookie) =>
+        this.partitionSession.cookies.remove(this.composeCookieUrl(cookie), cookie.name)
+      )
     );
   }
 
-  private composeCookieUrl(cookie: Cookies.Cookie): string {
+  private composeCookieUrl(cookie: Cookie): string {
     const scheme = cookie.secure ? 'https' : 'http';
-    const domain = cookie.domain?.startsWith('.') ? cookie.domain.slice(1) : cookie.domain ?? '';
+    const domain = cookie.domain?.startsWith('.') ? cookie.domain.slice(1) : (cookie.domain ?? '');
     const path = cookie.path ?? '/';
     return `${scheme}://${domain}${path}`;
   }
