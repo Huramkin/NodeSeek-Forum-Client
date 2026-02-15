@@ -29,14 +29,23 @@ let resourceMonitor: ResourceMonitor;
 let sessionManager: SessionManager;
 let authManager: AuthManager;
 let bookmarkManager: BookmarkManager;
+let ipcHandlersRegistered = false;
 
 const isDev = process.env.VITE_DEV_SERVER_URL !== undefined;
 
 const createWindow = async (): Promise<void> => {
-  configService = new ConfigService();
-  sessionManager = new SessionManager(configService.getConfig());
-  authManager = new AuthManager(configService.getConfig());
-  bookmarkManager = new BookmarkManager(configService);
+  if (!configService) {
+    configService = new ConfigService();
+  }
+  if (!sessionManager) {
+    sessionManager = new SessionManager(configService);
+  }
+  if (!authManager) {
+    authManager = new AuthManager(configService);
+  }
+  if (!bookmarkManager) {
+    bookmarkManager = new BookmarkManager(configService);
+  }
 
   mainWindow = new BrowserWindow({
     width: 1400,
@@ -72,7 +81,10 @@ const createWindow = async (): Promise<void> => {
   }
 
   resourceMonitor.start();
-  registerIpcHandlers();
+  if (!ipcHandlersRegistered) {
+    registerIpcHandlers();
+    ipcHandlersRegistered = true;
+  }
 };
 
 const registerIpcHandlers = (): void => {
