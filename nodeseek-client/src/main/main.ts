@@ -156,6 +156,8 @@ app
 app.on('before-quit', () => {
   resourceMonitor?.dispose();
   bookmarkManager?.dispose();
+  tabManager?.dispose();
+  sessionManager?.dispose();
 });
 
 app.on('window-all-closed', () => {
