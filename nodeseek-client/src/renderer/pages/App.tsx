@@ -5,6 +5,9 @@ import { AddressBar } from '../components/AddressBar';
 import { WebviewHost } from '../components/WebviewHost';
 import { useTabStore } from '../store/tabStore';
 import { BookmarkManagerPanel } from '../components/BookmarkManagerPanel';
+import { SettingsPanel } from '../components/SettingsPanel';
+import { ErrorBoundary } from '../components/ErrorBoundary';
+import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
 
 const Layout = styled.div`
   display: flex;
@@ -38,6 +41,10 @@ const App = () => {
     loading: state.loading
   }));
   const [bookmarkOpen, setBookmarkOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  
+  // Enable keyboard shortcuts
+  useKeyboardShortcuts();
 
   useEffect(() => {
     let unsubscribe: (() => void) | undefined;
@@ -54,14 +61,20 @@ const App = () => {
   }, [setSnapshot]);
 
   return (
-    <Root>
-      <Layout>
-        <TabBar />
-        <AddressBar onOpenBookmarks={() => setBookmarkOpen(true)} />
-        {loading ? <Loading>初始化標籤頁...</Loading> : <WebviewHost />}
-      </Layout>
-      <BookmarkManagerPanel open={bookmarkOpen} onClose={() => setBookmarkOpen(false)} />
-    </Root>
+    <ErrorBoundary>
+      <Root>
+        <Layout>
+          <TabBar />
+          <AddressBar 
+            onOpenBookmarks={() => setBookmarkOpen(true)} 
+            onOpenSettings={() => setSettingsOpen(true)}
+          />
+          {loading ? <Loading>初始化標籤頁...</Loading> : <WebviewHost />}
+        </Layout>
+        <BookmarkManagerPanel open={bookmarkOpen} onClose={() => setBookmarkOpen(false)} />
+        <SettingsPanel open={settingsOpen} onClose={() => setSettingsOpen(false)} />
+      </Root>
+    </ErrorBoundary>
   );
 };
 

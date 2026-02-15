@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import styled from 'styled-components';
 import { useTabStore } from '../store/tabStore';
 import { normalizeAddress } from '../utils/url';
+import type { BookmarkRecord } from '@shared/types/bookmarks';
 
 const Container = styled.div`
   display: flex;
@@ -12,22 +13,22 @@ const Container = styled.div`
   border-bottom: 1px solid rgba(255, 255, 255, 0.04);
 `;
 
-const Button = styled.button`
+const Button = styled.button<{ $active?: boolean }>`
   width: 32px;
   height: 32px;
   border-radius: 6px;
   border: none;
-  background: rgba(255, 255, 255, 0.08);
-  color: #f8fafc;
+  background: ${({ $active }) => ($active ? 'rgba(255, 215, 0, 0.2)' : 'rgba(255, 255, 255, 0.08)')};
+  color: ${({ $active }) => ($active ? '#ffd700' : '#f8fafc')};
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 14px;
-  transition: background 0.2s ease;
+  transition: all 0.2s ease;
 
   &:hover {
-    background: rgba(255, 255, 255, 0.16);
+    background: ${({ $active }) => ($active ? 'rgba(255, 215, 0, 0.3)' : 'rgba(255, 255, 255, 0.16)')};
   }
 `;
 
@@ -45,16 +46,46 @@ const Input = styled.input`
 
 interface AddressBarProps {
   onOpenBookmarks: () => void;
+  onOpenSettings: () => void;
 }
 
-export const AddressBar = ({ onOpenBookmarks }: AddressBarProps) => {
+export const AddressBar = ({ onOpenBookmarks, onOpenSettings }: AddressBarProps) => {
   const { tabs, activeTabId } = useTabStore();
   const activeTab = useMemo(() => tabs.find((tab) => tab.id === activeTabId), [tabs, activeTabId]);
   const [address, setAddress] = useState(activeTab?.url ?? '');
+  const [bookmarks, setBookmarks] = useState<BookmarkRecord[]>([]);
+  const [isBookmarked, setIsBookmarked] = useState(false);
+  const [currentBookmarkId, setCurrentBookmarkId] = useState<number | null>(null);
 
   useEffect(() => {
     setAddress(activeTab?.url ?? '');
   }, [activeTab?.url]);
+
+  // Load bookmarks on mount
+  useEffect(() => {
+    const loadBookmarks = async () => {
+      try {
+        const allBookmarks = await window.electronAPI.bookmarks.list(1);
+        setBookmarks(allBookmarks);
+      } catch (error) {
+        console.error('[AddressBar] Failed to load bookmarks:', error);
+      }
+    };
+    void loadBookmarks();
+  }, []);
+
+  // Check if current URL is bookmarked
+  useEffect(() => {
+    if (!activeTab?.url) {
+      setIsBookmarked(false);
+      setCurrentBookmarkId(null);
+      return;
+    }
+
+    const bookmark = bookmarks.find((b) => b.url === activeTab.url);
+    setIsBookmarked(!!bookmark);
+    setCurrentBookmarkId(bookmark?.id ?? null);
+  }, [activeTab?.url, bookmarks]);
 
   const activeWebview = (): HTMLWebViewElement | null => {
     if (!activeTabId) return null;
@@ -104,6 +135,47 @@ export const AddressBar = ({ onOpenBookmarks }: AddressBarProps) => {
     }
   };
 
+  const handleToggleBookmark = async () => {
+    if (!activeTab) return;
+
+    try {
+      if (isBookmarked && currentBookmarkId) {
+        // Remove bookmark
+        await window.electronAPI.bookmarks.remove(currentBookmarkId);
+        setBookmarks((prev) => prev.filter((b) => b.id !== currentBookmarkId));
+        setIsBookmarked(false);
+        setCurrentBookmarkId(null);
+      } else {
+        // Add bookmark
+        const title = activeTab.title || activeTab.url;
+        const newId = await window.electronAPI.bookmarks.add({
+          accountId: 1,
+          title,
+          url: activeTab.url,
+          isFavorite: false
+        });
+
+        const newBookmark: BookmarkRecord = {
+          id: newId,
+          accountId: 1,
+          title,
+          url: activeTab.url,
+          isFavorite: false,
+          visitCount: 0,
+          lastVisited: null,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        };
+
+        setBookmarks((prev) => [...prev, newBookmark]);
+        setIsBookmarked(true);
+        setCurrentBookmarkId(newId);
+      }
+    } catch (error) {
+      console.error('[AddressBar] Failed to toggle bookmark:', error);
+    }
+  };
+
   return (
     <Container>
       <Button onClick={handleBack} title="返回">
@@ -118,8 +190,14 @@ export const AddressBar = ({ onOpenBookmarks }: AddressBarProps) => {
       <Button onClick={handleForceUnload} title="強制卸載標籤頁內容">
         ⏻
       </Button>
+      <Button $active={isBookmarked} onClick={handleToggleBookmark} title={isBookmarked ? '取消收藏' : '收藏當前頁面'}>
+        {isBookmarked ? '★' : '☆'}
+      </Button>
       <Button onClick={onOpenBookmarks} title="管理書籤">
-        ★
+        ☰
+      </Button>
+      <Button onClick={onOpenSettings} title="設定">
+        ⚙
       </Button>
       <form style={{ flex: 1 }} onSubmit={handleSubmit}>
         <Input
