@@ -1,5 +1,5 @@
 import keytar from 'keytar';
-import { AppConfig } from '@shared/types/config';
+import { ConfigService } from '../services/configService';
 
 export interface CredentialPayload {
   id: string;
@@ -11,7 +11,11 @@ export interface CredentialPayload {
 const SERVICE_NAME = 'NodeSeekDeepFlood';
 
 export class AuthManager {
-  constructor(private readonly config: AppConfig) {}
+  constructor(private readonly configService: ConfigService) {}
+
+  private get config() {
+    return this.configService.getConfig();
+  }
 
   async saveCredential(payload: CredentialPayload): Promise<void> {
     if (!this.config.security.encryptLocalData) {

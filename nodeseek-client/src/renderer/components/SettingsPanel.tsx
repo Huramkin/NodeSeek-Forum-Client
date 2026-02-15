@@ -236,6 +236,7 @@ export const SettingsPanel = ({ open, onClose }: SettingsPanelProps) => {
 
   useEffect(() => {
     if (open) {
+      setMessage(null);
       loadConfig();
     }
   }, [open]);
@@ -272,6 +273,11 @@ export const SettingsPanel = ({ open, onClose }: SettingsPanelProps) => {
 
   const handleChange = (path: string, value: any) => {
     if (!config) return;
+
+    // Guard against NaN from parseInt on empty number inputs
+    if (typeof value === 'number' && isNaN(value)) {
+      return;
+    }
 
     const keys = path.split('.');
     const newConfig = { ...config };

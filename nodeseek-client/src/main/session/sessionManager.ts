@@ -1,7 +1,7 @@
 import { session, CookiesGetFilter, CookiesSetDetails } from 'electron';
 import type { Cookie } from 'electron';
 import Store from 'electron-store';
-import { AppConfig } from '@shared/types/config';
+import { ConfigService } from '../services/configService';
 
 export interface StoredCookie {
   name: string;
@@ -25,12 +25,16 @@ export class SessionManager {
   private readonly partitionSession = session.fromPartition(WEBVIEW_PARTITION);
   private readonly store: Store;
 
-  constructor(private readonly config: AppConfig) {
+  constructor(private readonly configService: ConfigService) {
     this.store = new Store({
       name: 'session-state'
     });
     // Load persisted sessions on startup
     this.loadPersistedSessions();
+  }
+
+  private get config() {
+    return this.configService.getConfig();
   }
 
   /**
