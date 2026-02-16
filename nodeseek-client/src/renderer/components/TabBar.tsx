@@ -1,89 +1,12 @@
-import styled from 'styled-components';
 import { useTabStore } from '../store/tabStore';
-
-const Container = styled.div`
-  display: flex;
-  align-items: center;
-  height: 40px;
-  background: rgba(15, 17, 25, 0.9);
-  padding: 0 8px;
-  gap: 4px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-`;
-
-const Tab = styled.button<{ $active: boolean }>`
-  min-width: 140px;
-  max-width: 220px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 4px 12px;
-  border-radius: 6px;
-  border: none;
-  cursor: pointer;
-  background: ${({ $active }) => ($active ? 'rgba(64, 128, 255, 0.18)' : 'transparent')};
-  color: #f8fafc;
-  font-size: 13px;
-  transition: background 0.2s ease;
-  position: relative;
-
-  &:hover {
-    background: rgba(255, 255, 255, 0.08);
-  }
-`;
-
-const Favicon = styled.img`
-  width: 16px;
-  height: 16px;
-  border-radius: 4px;
-  object-fit: cover;
-`;
-
-const Title = styled.span`
-  flex: 1;
-  text-align: left;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-`;
-
-const CloseButton = styled.span`
-  font-size: 12px;
-  opacity: 0.6;
-  padding: 2px;
-  border-radius: 4px;
-
-  &:hover {
-    background: rgba(255, 255, 255, 0.15);
-    opacity: 1;
-  }
-`;
-
-const AddButton = styled.button`
-  width: 30px;
-  height: 30px;
-  border-radius: 50%;
-  border: none;
-  background: rgba(255, 255, 255, 0.07);
-  color: #f8fafc;
-  cursor: pointer;
-  font-size: 18px;
-  line-height: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: background 0.2s ease;
-
-  &:hover {
-    background: rgba(255, 255, 255, 0.15);
-  }
-`;
+import { cn } from '../lib/utils';
 
 const DEFAULT_FAVICON =
   "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='3' fill='%23334155'/%3E%3Ctext x='8' y='12' text-anchor='middle' font-size='11' fill='%23cbd5e1'%3EN%3C/text%3E%3C/svg%3E";
 
 export const TabBar = () => {
-  const { tabs, activeTabId } = useTabStore();
+  const tabs = useTabStore((s) => s.tabs);
+  const activeTabId = useTabStore((s) => s.activeTabId);
 
   const handleCreate = () => {
     void window.electronAPI.tabs.create();
@@ -98,10 +21,18 @@ export const TabBar = () => {
   };
 
   return (
-    <Container>
+    <div className="flex items-center h-10 bg-surface-elevated/90 px-2 gap-1 border-b border-white/5">
       {tabs.map((tab) => (
-        <Tab key={tab.id} $active={tab.id === activeTabId} onClick={() => handleActivate(tab.id)}>
-          <Favicon
+        <button
+          key={tab.id}
+          className={cn(
+            'min-w-[140px] max-w-[220px] flex items-center gap-2 px-3 py-1 rounded-md border-none cursor-pointer text-text-primary text-[13px] transition-colors relative',
+            tab.id === activeTabId ? 'bg-accent' : 'bg-transparent hover:bg-white/[0.08]'
+          )}
+          onClick={() => handleActivate(tab.id)}
+        >
+          <img
+            className="w-4 h-4 rounded object-cover"
             src={tab.favicon ?? DEFAULT_FAVICON}
             alt=""
             onError={(event) => {
@@ -110,20 +41,27 @@ export const TabBar = () => {
               }
             }}
           />
-          <Title>{tab.title}</Title>
-          <CloseButton
+          <span className="flex-1 text-left whitespace-nowrap overflow-hidden text-ellipsis">
+            {tab.title}
+          </span>
+          <span
+            className="text-xs opacity-60 p-0.5 rounded hover:bg-white/15 hover:opacity-100"
             onClick={(event) => {
               event.stopPropagation();
               handleClose(tab.id);
             }}
           >
             ×
-          </CloseButton>
-        </Tab>
+          </span>
+        </button>
       ))}
-      <AddButton title="新建標籤頁" onClick={handleCreate}>
+      <button
+        title="新建標籤頁"
+        onClick={handleCreate}
+        className="w-[30px] h-[30px] rounded-full border-none bg-white/[0.07] text-text-primary cursor-pointer text-lg leading-none flex items-center justify-center transition-colors hover:bg-white/15"
+      >
         +
-      </AddButton>
-    </Container>
+      </button>
+    </div>
   );
 };

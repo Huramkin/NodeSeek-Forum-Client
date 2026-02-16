@@ -1,48 +1,7 @@
 import React, { useEffect, useRef } from 'react';
-import styled from 'styled-components';
 import { useTabStore } from '../store/tabStore';
 
-const Container = styled.div`
-  flex: 1;
-  background: #050607;
-  position: relative;
-  overflow: hidden;
-`;
-
-const WebviewLayer = styled.div<{ $active: boolean }>`
-  position: absolute;
-  inset: 0;
-  display: ${({ $active }) => ($active ? 'flex' : 'none')};
-`;
-
-const SuspendedOverlay = styled.div`
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(5, 6, 7, 0.92);
-  color: #cbd5f5;
-  font-size: 15px;
-  letter-spacing: 0.4px;
-  flex-direction: column;
-  gap: 8px;
-`;
-
-const SuspendedButton = styled.button`
-  border: none;
-  padding: 8px 20px;
-  border-radius: 6px;
-  background: rgba(79, 130, 255, 0.85);
-  color: white;
-  cursor: pointer;
-  font-size: 14px;
-  font-weight: 600;
-
-  &:hover {
-    background: rgba(79, 130, 255, 1);
-  }
-`;
+const isElectron = typeof window !== 'undefined' && !!(window as any).electronAPI?.tabs?.onReload && typeof (window as any).require !== 'undefined';
 
 const webviewStyle: React.CSSProperties = {
   width: '100%',
@@ -66,9 +25,7 @@ const WebviewItem = ({
 
   useEffect(() => {
     const webview = ref.current;
-    if (!webview) {
-      return;
-    }
+    if (!webview || !isElectron) return;
 
     const handleTitle = (event: any) => {
       void window.electronAPI.tabs.updateMeta({ id: tabId, title: event.title, isLoading: false });
@@ -114,9 +71,7 @@ const WebviewItem = ({
 
   useEffect(() => {
     const webview = ref.current;
-    if (!webview) {
-      return;
-    }
+    if (!webview || !isElectron) return;
     if (isSuspended) {
       if (webview.src !== 'about:blank') {
         webview.src = 'about:blank';
@@ -127,9 +82,7 @@ const WebviewItem = ({
   }, [url, isSuspended]);
 
   useEffect(() => {
-    if (!isActive || !isSuspended) {
-      return;
-    }
+    if (!isActive || !isSuspended) return;
     void window.electronAPI.tabs.refresh({ id: tabId, url, mode: 'hard', reason: 'resume' });
   }, [isActive, isSuspended, tabId, url]);
 
@@ -138,8 +91,18 @@ const WebviewItem = ({
   };
 
   return (
-    <WebviewLayer $active={isActive}>
-      {!isSuspended ? (
+    <div className={`absolute inset-0 ${isActive ? 'flex' : 'hidden'}`}>
+      {isSuspended ? (
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-surface/[0.92] text-text-muted text-[15px] tracking-wide">
+          <p>此標籤頁因資源限制已卸載</p>
+          <button
+            onClick={handleResume}
+            className="border-none px-5 py-2 rounded-md bg-accent-solid text-white cursor-pointer text-sm font-semibold hover:bg-accent-hover"
+          >
+            重新載入
+          </button>
+        </div>
+      ) : isElectron ? (
         <webview
           ref={ref}
           data-tab-id={tabId}
@@ -149,26 +112,30 @@ const WebviewItem = ({
           style={webviewStyle}
         />
       ) : (
-        <SuspendedOverlay>
-          <p>此標籤頁因資源限制已卸載</p>
-          <SuspendedButton onClick={handleResume}>重新載入</SuspendedButton>
-        </SuspendedOverlay>
+        <iframe
+          data-tab-id={tabId}
+          src={url}
+          style={webviewStyle}
+          sandbox="allow-same-origin allow-scripts allow-popups allow-forms"
+          title={`tab-${tabId}`}
+        />
       )}
-    </WebviewLayer>
+    </div>
   );
 };
 
 export const WebviewHost = () => {
-  const { tabs, activeTabId } = useTabStore();
+  const tabs = useTabStore((s) => s.tabs);
+  const activeTabId = useTabStore((s) => s.activeTabId);
 
   useEffect(() => {
+    if (!isElectron) return;
+
     const unsubscribeReload = window.electronAPI.tabs.onReload((payload) => {
       const view = document.querySelector(
         `webview[data-tab-id="${payload.id}"]`
       ) as HTMLWebViewElement | null;
-      if (!view) {
-        return;
-      }
+      if (!view) return;
       if (payload.mode === 'hard') {
         if (payload.url) {
           view.src = payload.url;
@@ -195,7 +162,7 @@ export const WebviewHost = () => {
   }, []);
 
   return (
-    <Container>
+    <div className="flex-1 bg-surface relative overflow-hidden">
       {tabs.map((tab) => (
         <WebviewItem
           key={tab.id}
@@ -205,6 +172,6 @@ export const WebviewHost = () => {
           isSuspended={tab.isSuspended}
         />
       ))}
-    </Container>
+    </div>
   );
 };

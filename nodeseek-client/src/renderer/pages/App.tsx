@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import styled from 'styled-components';
 import { TabBar } from '../components/TabBar';
 import { AddressBar } from '../components/AddressBar';
 import { WebviewHost } from '../components/WebviewHost';
@@ -10,32 +9,6 @@ import { LoginPanel } from '../components/LoginPanel';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
 
-const Layout = styled.div`
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-  background: #050607;
-  border: 1px solid rgba(255, 255, 255, 0.04);
-  border-radius: 12px;
-  margin: 12px;
-  overflow: hidden;
-`;
-
-const Loading = styled.div`
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #94a3b8;
-  font-size: 14px;
-`;
-
-const Root = styled.div`
-  width: 100%;
-  height: 100%;
-  background: radial-gradient(circle at top, rgba(32, 86, 214, 0.15), transparent 60%);
-`;
-
 const App = () => {
   const setSnapshot = useTabStore((state) => state.setSnapshot);
   const loading = useTabStore((state) => state.loading);
@@ -43,11 +16,9 @@ const App = () => {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [loginOpen, setLoginOpen] = useState(false);
   const [currentUser, setCurrentUser] = useState<{ username: string; displayName?: string } | null>(null);
-  
-  // Enable keyboard shortcuts
+
   useKeyboardShortcuts();
 
-  // Load current user on mount
   useEffect(() => {
     const loadCurrentUser = async () => {
       try {
@@ -76,7 +47,6 @@ const App = () => {
 
   const handleLogout = async () => {
     if (!currentUser) return;
-    
     try {
       const accounts = await window.electronAPI.auth.listAccounts();
       const account = accounts.find(a => a.username === currentUser.username);
@@ -105,22 +75,28 @@ const App = () => {
 
   return (
     <ErrorBoundary>
-      <Root>
-        <Layout>
+      <div className="w-full h-full bg-[radial-gradient(circle_at_top,rgba(32,86,214,0.15),transparent_60%)]">
+        <div className="flex flex-col flex-1 bg-surface border border-border-subtle rounded-xl m-3 overflow-hidden">
           <TabBar />
-          <AddressBar 
-            onOpenBookmarks={() => setBookmarkOpen(true)} 
+          <AddressBar
+            onOpenBookmarks={() => setBookmarkOpen(true)}
             onOpenSettings={() => setSettingsOpen(true)}
             onOpenLogin={() => setLoginOpen(true)}
             currentUser={currentUser}
             onLogout={handleLogout}
           />
-          {loading ? <Loading>初始化標籤頁...</Loading> : <WebviewHost />}
-        </Layout>
+          {loading ? (
+            <div className="flex-1 flex items-center justify-center text-text-secondary text-sm">
+              初始化標籤頁...
+            </div>
+          ) : (
+            <WebviewHost />
+          )}
+        </div>
         <BookmarkManagerPanel open={bookmarkOpen} onClose={() => setBookmarkOpen(false)} />
         <SettingsPanel open={settingsOpen} onClose={() => setSettingsOpen(false)} />
         <LoginPanel open={loginOpen} onClose={() => setLoginOpen(false)} onLogin={handleLogin} />
-      </Root>
+      </div>
     </ErrorBoundary>
   );
 };

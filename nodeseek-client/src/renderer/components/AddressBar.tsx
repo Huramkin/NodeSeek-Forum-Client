@@ -1,67 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
-import styled from 'styled-components';
 import { useTabStore } from '../store/tabStore';
 import { normalizeAddress } from '../utils/url';
+import { cn } from '../lib/utils';
 import type { BookmarkRecord } from '@shared/types/bookmarks';
-
-const Container = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 16px;
-  background: rgba(18, 20, 30, 0.95);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
-`;
-
-const Button = styled.button<{ $active?: boolean }>`
-  width: 32px;
-  height: 32px;
-  border-radius: 6px;
-  border: none;
-  background: ${({ $active }) => ($active ? 'rgba(255, 215, 0, 0.2)' : 'rgba(255, 255, 255, 0.08)')};
-  color: ${({ $active }) => ($active ? '#ffd700' : '#f8fafc')};
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 14px;
-  transition: all 0.2s ease;
-
-  &:hover {
-    background: ${({ $active }) => ($active ? 'rgba(255, 215, 0, 0.3)' : 'rgba(255, 255, 255, 0.16)')};
-  }
-`;
-
-const Input = styled.input`
-  flex: 1;
-  height: 36px;
-  border-radius: 8px;
-  border: none;
-  background: rgba(255, 255, 255, 0.08);
-  color: #e2e8f0;
-  padding: 0 12px;
-  font-size: 14px;
-  outline: none;
-`;
-
-const UserInfo = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 4px 12px;
-  border-radius: 6px;
-  background: rgba(59, 130, 246, 0.15);
-  border: 1px solid rgba(59, 130, 246, 0.3);
-  font-size: 13px;
-  color: #60a5fa;
-`;
-
-const UserName = styled.span`
-  max-width: 120px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-`;
 
 interface AddressBarProps {
   onOpenBookmarks: () => void;
@@ -71,8 +12,34 @@ interface AddressBarProps {
   onLogout: () => void;
 }
 
+const NavButton = ({
+  onClick,
+  title,
+  active,
+  children
+}: {
+  onClick: () => void;
+  title: string;
+  active?: boolean;
+  children: React.ReactNode;
+}) => (
+  <button
+    onClick={onClick}
+    title={title}
+    className={cn(
+      'w-8 h-8 rounded-md border-none cursor-pointer flex items-center justify-center text-sm transition-all',
+      active
+        ? 'bg-yellow-500/20 text-yellow-400 hover:bg-yellow-500/30'
+        : 'bg-white/[0.08] text-text-primary hover:bg-white/[0.16]'
+    )}
+  >
+    {children}
+  </button>
+);
+
 export const AddressBar = ({ onOpenBookmarks, onOpenSettings, onOpenLogin, currentUser, onLogout }: AddressBarProps) => {
-  const { tabs, activeTabId } = useTabStore();
+  const tabs = useTabStore((s) => s.tabs);
+  const activeTabId = useTabStore((s) => s.activeTabId);
   const activeTab = useMemo(() => tabs.find((tab) => tab.id === activeTabId), [tabs, activeTabId]);
   const [address, setAddress] = useState(activeTab?.url ?? '');
   const [bookmarks, setBookmarks] = useState<BookmarkRecord[]>([]);
@@ -83,7 +50,6 @@ export const AddressBar = ({ onOpenBookmarks, onOpenSettings, onOpenLogin, curre
     setAddress(activeTab?.url ?? '');
   }, [activeTab?.url]);
 
-  // Load bookmarks on mount
   useEffect(() => {
     const loadBookmarks = async () => {
       try {
@@ -96,14 +62,12 @@ export const AddressBar = ({ onOpenBookmarks, onOpenSettings, onOpenLogin, curre
     void loadBookmarks();
   }, []);
 
-  // Check if current URL is bookmarked
   useEffect(() => {
     if (!activeTab?.url) {
       setIsBookmarked(false);
       setCurrentBookmarkId(null);
       return;
     }
-
     const bookmark = bookmarks.find((b) => b.url === activeTab.url);
     setIsBookmarked(!!bookmark);
     setCurrentBookmarkId(bookmark?.id ?? null);
@@ -116,18 +80,14 @@ export const AddressBar = ({ onOpenBookmarks, onOpenSettings, onOpenLogin, curre
 
   const handleSubmit = (event: React.FormEvent) => {
     event.preventDefault();
-    if (!activeTab) {
-      return;
-    }
+    if (!activeTab) return;
     const normalized = normalizeAddress(address);
     setAddress(normalized);
     void window.electronAPI.tabs.navigate({ id: activeTab.id, url: normalized });
   };
 
   const handleReload = () => {
-    if (!activeTab) {
-      return;
-    }
+    if (!activeTab) return;
     void window.electronAPI.tabs.refresh({
       id: activeTab.id,
       url: activeTab.url,
@@ -162,13 +122,11 @@ export const AddressBar = ({ onOpenBookmarks, onOpenSettings, onOpenLogin, curre
 
     try {
       if (isBookmarked && currentBookmarkId) {
-        // Remove bookmark
         await window.electronAPI.bookmarks.remove(currentBookmarkId);
         setBookmarks((prev) => prev.filter((b) => b.id !== currentBookmarkId));
         setIsBookmarked(false);
         setCurrentBookmarkId(null);
       } else {
-        // Add bookmark
         const title = activeTab.title || activeTab.url;
         const newId = await window.electronAPI.bookmarks.add({
           accountId: 1,
@@ -199,53 +157,38 @@ export const AddressBar = ({ onOpenBookmarks, onOpenSettings, onOpenLogin, curre
   };
 
   return (
-    <Container>
-      <Button onClick={handleBack} title="返回">
-        ←
-      </Button>
-      <Button onClick={handleForward} title="前進">
-        →
-      </Button>
-      <Button onClick={handleReload} title="重新整理">
-        ⟳
-      </Button>
-      <Button onClick={handleForceUnload} title="強制卸載標籤頁內容">
-        ⏻
-      </Button>
-      <Button $active={isBookmarked} onClick={handleToggleBookmark} title={isBookmarked ? '取消收藏' : '收藏當前頁面'}>
+    <div className="flex items-center gap-2 px-4 py-2 bg-surface-elevated/95 border-b border-border-subtle">
+      <NavButton onClick={handleBack} title="返回">←</NavButton>
+      <NavButton onClick={handleForward} title="前進">→</NavButton>
+      <NavButton onClick={handleReload} title="重新整理">⟳</NavButton>
+      <NavButton onClick={handleForceUnload} title="強制卸載標籤頁內容">⏻</NavButton>
+      <NavButton onClick={handleToggleBookmark} title={isBookmarked ? '取消收藏' : '收藏當前頁面'} active={isBookmarked}>
         {isBookmarked ? '★' : '☆'}
-      </Button>
-      <Button onClick={onOpenBookmarks} title="管理書籤">
-        ☰
-      </Button>
-      <Button onClick={onOpenSettings} title="設定">
-        ⚙
-      </Button>
+      </NavButton>
+      <NavButton onClick={onOpenBookmarks} title="管理書籤">☰</NavButton>
+      <NavButton onClick={onOpenSettings} title="設定">⚙</NavButton>
       {currentUser ? (
         <>
-          <UserInfo>
+          <div className="flex items-center gap-2 px-3 py-1 rounded-md bg-blue-500/15 border border-blue-500/30 text-[13px] text-blue-400">
             <span>👤</span>
-            <UserName title={currentUser.displayName || currentUser.username}>
+            <span className="max-w-[120px] overflow-hidden text-ellipsis whitespace-nowrap" title={currentUser.displayName || currentUser.username}>
               {currentUser.displayName || currentUser.username}
-            </UserName>
-          </UserInfo>
-          <Button onClick={onLogout} title="登出">
-            ⎋
-          </Button>
+            </span>
+          </div>
+          <NavButton onClick={onLogout} title="登出">⎋</NavButton>
         </>
       ) : (
-        <Button onClick={onOpenLogin} title="登入">
-          🔑
-        </Button>
+        <NavButton onClick={onOpenLogin} title="登入">🔑</NavButton>
       )}
-      <form style={{ flex: 1 }} onSubmit={handleSubmit}>
-        <Input
+      <form className="flex-1" onSubmit={handleSubmit}>
+        <input
+          className="w-full h-9 rounded-lg border-none bg-white/[0.08] text-[#e2e8f0] px-3 text-sm outline-none"
           value={address}
           onChange={(event) => setAddress(event.target.value)}
           spellCheck={false}
           placeholder="輸入 NodeSeek 帖子連結或關鍵字"
         />
       </form>
-    </Container>
+    </div>
   );
 };
