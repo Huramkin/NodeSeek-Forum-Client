@@ -70,6 +70,13 @@ const createWindow = async (): Promise<void> => {
     mainWindow?.webContents.send(IPCChannels.TABS_STATE_PUSH, snapshot);
   });
 
+  // Register IPC handlers BEFORE loading the page so the renderer
+  // can call tabs.list() as soon as it mounts.
+  if (!ipcHandlersRegistered) {
+    registerIpcHandlers();
+    ipcHandlersRegistered = true;
+  }
+
   const pageUrl = isDev
     ? process.env.VITE_DEV_SERVER_URL!
     : `file://${path.join(__dirname, '../renderer/index.html')}`;
@@ -81,10 +88,6 @@ const createWindow = async (): Promise<void> => {
   }
 
   resourceMonitor.start();
-  if (!ipcHandlersRegistered) {
-    registerIpcHandlers();
-    ipcHandlersRegistered = true;
-  }
 };
 
 const registerIpcHandlers = (): void => {

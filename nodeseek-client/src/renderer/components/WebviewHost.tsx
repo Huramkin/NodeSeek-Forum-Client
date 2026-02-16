@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import React, { useEffect, useRef } from 'react';
 import styled from 'styled-components';
 import { useTabStore } from '../store/tabStore';
 
@@ -44,12 +44,12 @@ const SuspendedButton = styled.button`
   }
 `;
 
-const WebviewElement = styled.webview`
-  width: 100%;
-  height: 100%;
-  border: none;
-  background: #0c0d12;
-`;
+const webviewStyle: React.CSSProperties = {
+  width: '100%',
+  height: '100%',
+  border: 'none',
+  background: '#0c0d12'
+};
 
 const WebviewItem = ({
   tabId,
@@ -140,12 +140,13 @@ const WebviewItem = ({
   return (
     <WebviewLayer $active={isActive}>
       {!isSuspended ? (
-        <WebviewElement
+        <webview
           ref={ref}
           data-tab-id={tabId}
           partition="persist:nodeseek"
           allowpopups="true"
           src={url}
+          style={webviewStyle}
         />
       ) : (
         <SuspendedOverlay>

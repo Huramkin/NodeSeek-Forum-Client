@@ -37,10 +37,8 @@ const Root = styled.div`
 `;
 
 const App = () => {
-  const { setSnapshot, loading } = useTabStore((state) => ({
-    setSnapshot: state.setSnapshot,
-    loading: state.loading
-  }));
+  const setSnapshot = useTabStore((state) => state.setSnapshot);
+  const loading = useTabStore((state) => state.loading);
   const [bookmarkOpen, setBookmarkOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [loginOpen, setLoginOpen] = useState(false);
@@ -53,7 +51,7 @@ const App = () => {
   useEffect(() => {
     const loadCurrentUser = async () => {
       try {
-        const user = await window.electronAPI.auth.getCurrentUser();
+        const user = await window.electronAPI?.auth?.getCurrentUser();
         if (user) {
           setCurrentUser({ username: user.username, displayName: user.displayName });
         }

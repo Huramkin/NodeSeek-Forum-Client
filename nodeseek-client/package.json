@@ -4,7 +4,7 @@
   "description": "NodeSeek DeepFlood forum desktop client built with Electron and React",
   "author": "NodeSeek Contributors",
   "license": "MIT",
-  "main": "dist/main/main.js",
+  "main": "dist/main/main/main.js",
   "scripts": {
     "postinstall": "electron-builder install-app-deps",
     "dev": "concurrently \"npm:dev:renderer\" \"npm:dev:main\" \"npm:dev:preload\" \"npm:dev:electron\"",

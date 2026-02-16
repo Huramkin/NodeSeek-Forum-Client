@@ -10,7 +10,7 @@ const createMockSnapshot = (): TabSnapshot => ({
       id: 'demo-1',
       title: 'NodeSeek',
       url: 'https://nodeseek.com/',
-      favicon: 'https://nodeseek.com/favicon.ico',
+      favicon: undefined,
       isActive: true,
       isSuspended: false,
       isLoading: false,
@@ -159,6 +159,12 @@ export const attachBrowserElectronApi = (): void => {
         );
         folders = folders.filter((f) => f.id !== id);
       }
+    },
+    auth: {
+      login: async (_username, _password) => ({ success: true, accountId: 'mock-1', username: _username }),
+      logout: async () => ({ success: true }),
+      getCurrentUser: async () => null,
+      listAccounts: async () => []
     }
   };
 

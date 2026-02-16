@@ -79,7 +79,8 @@ const AddButton = styled.button`
   }
 `;
 
-const DEFAULT_FAVICON = 'https://nodeseek.com/favicon.ico';
+const DEFAULT_FAVICON =
+  "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='3' fill='%23334155'/%3E%3Ctext x='8' y='12' text-anchor='middle' font-size='11' fill='%23cbd5e1'%3EN%3C/text%3E%3C/svg%3E";
 
 export const TabBar = () => {
   const { tabs, activeTabId } = useTabStore();
@@ -103,7 +104,11 @@ export const TabBar = () => {
           <Favicon
             src={tab.favicon ?? DEFAULT_FAVICON}
             alt=""
-            onError={(event) => (event.currentTarget.src = DEFAULT_FAVICON)}
+            onError={(event) => {
+              if (event.currentTarget.src !== DEFAULT_FAVICON) {
+                event.currentTarget.src = DEFAULT_FAVICON;
+              }
+            }}
           />
           <Title>{tab.title}</Title>
           <CloseButton
