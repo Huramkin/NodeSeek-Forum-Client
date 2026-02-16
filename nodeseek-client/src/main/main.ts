@@ -1,12 +1,15 @@
 import path from 'node:path';
-import { app, BrowserWindow, ipcMain, nativeTheme } from 'electron';
-import { IPCChannels } from '@shared/ipcChannels';
+import { fileURLToPath } from 'node:url';
+import { app, BrowserWindow, ipcMain, nativeTheme, session } from 'electron';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+import { IPCChannels } from '../shared/ipcChannels';
 import {
   CreateTabPayload,
   NavigateTabPayload,
   ReloadTabPayload,
   UpdateTabMetaPayload
-} from '@shared/types/tabs';
+} from '../shared/types/tabs';
 import { TabManager } from './services/tabManager';
 import { ConfigService } from './services/configService';
 import { ResourceMonitor } from './services/resourceMonitor';
@@ -20,7 +23,7 @@ import {
   BookmarkFolderInput,
   BookmarkFolderUpdatePayload,
   BatchBookmarkOperation
-} from '@shared/types/bookmarks';
+} from '../shared/types/bookmarks';
 
 let mainWindow: BrowserWindow | null = null;
 let tabManager: TabManager;
@@ -61,6 +64,24 @@ const createWindow = async (): Promise<void> => {
       webviewTag: true,
       spellcheck: false
     }
+  });
+
+  // Strip headers that block webview embedding (COEP, COOP, X-Frame-Options)
+  const webviewSession = session.fromPartition('persist:nodeseek');
+  webviewSession.webRequest.onHeadersReceived((details, callback) => {
+    const headers = { ...details.responseHeaders };
+    const strip = [
+      'cross-origin-opener-policy',
+      'cross-origin-embedder-policy',
+      'cross-origin-resource-policy',
+      'x-frame-options'
+    ];
+    for (const key of Object.keys(headers)) {
+      if (strip.includes(key.toLowerCase())) {
+        delete headers[key];
+      }
+    }
+    callback({ cancel: false, responseHeaders: headers });
   });
 
   tabManager = new TabManager(mainWindow);

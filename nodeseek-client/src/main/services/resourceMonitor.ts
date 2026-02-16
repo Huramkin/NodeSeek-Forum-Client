@@ -3,7 +3,7 @@ import { BrowserWindow, powerMonitor } from 'electron';
 import { TabManager } from './tabManager';
 import { ConfigService } from './configService';
 import { SessionManager } from '../session/sessionManager';
-import { IPCChannels } from '@shared/ipcChannels';
+import { IPCChannels } from '../../shared/ipcChannels';
 
 export interface ResourceSample {
   tabId: string;

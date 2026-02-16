@@ -2,7 +2,7 @@ import { BrowserWindow } from 'electron';
 import { EventEmitter } from 'node:events';
 import { randomUUID } from 'node:crypto';
 import Store from 'electron-store';
-import { CreateTabPayload, TabMetadata, TabSnapshot, UpdateTabMetaPayload } from '@shared/types/tabs';
+import { CreateTabPayload, TabMetadata, TabSnapshot, UpdateTabMetaPayload } from '../../shared/types/tabs';
 
 export interface TabManagerEvents {
   'state-changed': (snapshot: TabSnapshot) => void;

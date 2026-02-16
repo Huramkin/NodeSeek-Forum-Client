@@ -1,6 +1,6 @@
 import Store from 'electron-store';
-import { AppConfig } from '@shared/types/config';
-import { defaultConfig } from '@shared/config/defaults';
+import { AppConfig } from '../../shared/types/config';
+import { defaultConfig } from '../../shared/config/defaults';
 
 const APP_CONFIG_KEY = 'nodeseek-app-config';
 

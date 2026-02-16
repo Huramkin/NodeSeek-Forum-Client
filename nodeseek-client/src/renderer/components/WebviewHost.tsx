@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { useTabStore } from '../store/tabStore';
 
-const isElectron = typeof window !== 'undefined' && !!(window as any).electronAPI?.tabs?.onReload && typeof (window as any).require !== 'undefined';
+const isElectron = typeof navigator !== 'undefined' && navigator.userAgent.includes('Electron');
 
 const webviewStyle: React.CSSProperties = {
   width: '100%',
@@ -22,10 +22,22 @@ const WebviewItem = ({
   isSuspended: boolean;
 }) => {
   const ref = useRef<HTMLWebViewElement | null>(null);
+  const ready = useRef(false);
+  const pendingUrl = useRef<string | null>(null);
 
+  // Set up event listeners once
   useEffect(() => {
     const webview = ref.current;
     if (!webview || !isElectron) return;
+
+    const handleReady = () => {
+      ready.current = true;
+      // Navigate to pending URL if one was queued before dom-ready
+      if (pendingUrl.current && !isSuspended) {
+        webview.src = pendingUrl.current;
+        pendingUrl.current = null;
+      }
+    };
 
     const handleTitle = (event: any) => {
       void window.electronAPI.tabs.updateMeta({ id: tabId, title: event.title, isLoading: false });
@@ -52,6 +64,7 @@ const WebviewItem = ({
       void window.electronAPI.tabs.updateMeta({ id: tabId, isLoading: false });
     };
 
+    (webview as any).addEventListener('dom-ready', handleReady);
     (webview as any).addEventListener('page-title-updated', handleTitle);
     (webview as any).addEventListener('page-favicon-updated', handleFavicon);
     (webview as any).addEventListener('did-navigate-in-page', handleNavigation);
@@ -60,6 +73,7 @@ const WebviewItem = ({
     (webview as any).addEventListener('did-stop-loading', handleStop);
 
     return () => {
+      (webview as any).removeEventListener('dom-ready', handleReady);
       (webview as any).removeEventListener('page-title-updated', handleTitle);
       (webview as any).removeEventListener('page-favicon-updated', handleFavicon);
       (webview as any).removeEventListener('did-navigate-in-page', handleNavigation);
@@ -69,14 +83,26 @@ const WebviewItem = ({
     };
   }, [tabId]);
 
+  // Navigate when url or suspended state changes
   useEffect(() => {
     const webview = ref.current;
     if (!webview || !isElectron) return;
+
     if (isSuspended) {
+      pendingUrl.current = null;
       if (webview.src !== 'about:blank') {
         webview.src = 'about:blank';
       }
-    } else if (webview.src !== url) {
+      return;
+    }
+
+    if (!ready.current) {
+      // Webview not ready yet — queue the URL for dom-ready handler
+      pendingUrl.current = url;
+      return;
+    }
+
+    if (webview.src !== url) {
       webview.src = url;
     }
   }, [url, isSuspended]);
@@ -108,7 +134,7 @@ const WebviewItem = ({
           data-tab-id={tabId}
           partition="persist:nodeseek"
           allowpopups="true"
-          src={url}
+          src="about:blank"
           style={webviewStyle}
         />
       ) : (

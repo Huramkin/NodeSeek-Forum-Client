@@ -15,7 +15,7 @@ import {
   BookmarkFolderInput,
   BookmarkFolderUpdatePayload,
   BatchBookmarkOperation
-} from '@shared/types/bookmarks';
+} from '../../shared/types/bookmarks';
 
 const DEFAULT_ACCOUNT_ID = 1;
 const WEB_DAV_REMOTE_PATH = '/nodeseek/bookmarks.json';

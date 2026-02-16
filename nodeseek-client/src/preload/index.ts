@@ -1,13 +1,13 @@
 import { contextBridge, ipcRenderer } from 'electron';
-import { IPCChannels } from '@shared/ipcChannels';
+import { IPCChannels } from '../shared/ipcChannels';
 import {
   CreateTabPayload,
   NavigateTabPayload,
   ReloadTabPayload,
   TabSnapshot,
   UpdateTabMetaPayload
-} from '@shared/types/tabs';
-import { AppConfig } from '@shared/types/config';
+} from '../shared/types/tabs';
+import { AppConfig } from '../shared/types/config';
 import {
   BookmarkInput,
   BookmarkRecord,
@@ -18,7 +18,7 @@ import {
   BookmarkFolderInput,
   BookmarkFolderUpdatePayload,
   BatchBookmarkOperation
-} from '@shared/types/bookmarks';
+} from '../shared/types/bookmarks';
 
 const tabsApi = {
   list: (): Promise<TabSnapshot> => ipcRenderer.invoke(IPCChannels.TABS_LIST),
